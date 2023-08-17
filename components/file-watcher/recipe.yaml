@@ -1,0 +1,44 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: "{COMPONENT_NAME}"
+ComponentVersion: "{COMPONENT_VERSION}"
+ComponentPublisher: "{COMPONENT_AUTHOR}"
+ComponentDependencies:
+  aws.greengrass.StreamManager:
+    VersionRequirement: ^2.0.0
+  aws.greengrass.ShadowManager:
+    VersionRequirement: ^2.0.0
+ComponentConfiguration:
+  DefaultConfiguration:
+    accessControl:
+      aws.greengrass.ShadowManager:
+        "com.example.file-watcher:shadow:1":
+          operations:
+            - "aws.greengrass#GetThingShadow"
+            - "aws.greengrass#UpdateThingShadow"
+          resources:
+            - "*"
+        "com.example.file-watcher:shadow:2":
+          operations:
+            - "aws.greengrass#ListNamedShadowsForThing"
+          resources:
+            - "{iot:thingName}"
+    Bucket: "CDK.DEST_BUCKET_NAME" # 送信先バケット
+    BucketPrefix: "!{timestamp:YYYY}/!{timestamp:MM}/!{timestamp:dd}" # Prefix Key(`YYYY/MM/DD/file`)
+    TargetDir: "." # Source directory (default is the component's `work` directory)
+    FilePattern: "*"
+    CheckIntervalSec: 0 # Check interval (0 means real-time transmission)
+    DeleteMovedFiles: true # true if the file is deleted from the local directory once it is saved to S3
+    LogLevel: "info" # Log level (debug, info, warn, error)
+Manifests:
+  - Platform:
+      os: all
+    Lifecycle:
+      Install:
+        Timeout: 300
+        Script: python3 -m pip install -v -r {artifacts:decompressedPath}/file-watcher/requirements.txt
+      Run:
+        Script: "python3 -u {artifacts:decompressedPath}/file-watcher/src/main.py"
+    Artifacts:
+      - URI: s3://BUCKET_NAME/COMPONENT_NAME/COMPONENT_VERSION/file-watcher.zip
+        Unarchive: "ZIP"

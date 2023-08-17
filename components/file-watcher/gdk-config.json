@@ -1,0 +1,16 @@
+{
+  "component": {
+    "com.example.file-watcher": {
+      "author": "Amazon",
+      "version": "NEXT_PATCH",
+      "build": {
+        "build_system": "zip"
+      },
+      "publish": {
+        "bucket": "gdk-industrial-platform",
+        "region": "ap-northeast-1"
+      }
+    }
+  },
+  "gdk_version": "1.0.0"
+}

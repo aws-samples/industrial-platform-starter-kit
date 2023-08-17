@@ -1,0 +1,14 @@
+[Unit]
+Description=OPC-UA Dummy Server
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/usr/bin/opcua
+ExecStart=/usr/bin/python3 /usr/bin/opcua/main.py
+Restart=always
+RestartSec=5
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
