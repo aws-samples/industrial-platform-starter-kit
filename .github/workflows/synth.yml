@@ -6,8 +6,8 @@ jobs:
   cdk-synth:
     runs-on: ubuntu-latest
     env:
-      AWS_ACCOUNT_ID: "123456789012"
-      AWS_REGION: "us-west-2"
+      CDK_DEFAULT_ACCOUNT: "123456789012"
+      CDK_DEFAULT_REGION: "us-west-2"
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js
