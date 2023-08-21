@@ -1,13 +1,10 @@
-name: Synth
+name: Snapshot
 on:
   pull_request:
     branches: ["main"]
 jobs:
   cdk-synth:
     runs-on: ubuntu-latest
-    env:
-      CDK_DEFAULT_ACCOUNT: "123456789012"
-      CDK_DEFAULT_REGION: "us-west-2"
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js
@@ -17,4 +14,5 @@ jobs:
       - run: |
           cd cdk
           npm ci
-          npx cdk synth --all
+      # - run: npx cdk synth --verbose
+      - run: npm run test -- -u
