@@ -14,5 +14,6 @@ jobs:
       - run: |
           cd cdk
           npm ci
+          npm run test -- -u
       # - run: npx cdk synth --verbose
-      - run: npm run test -- -u
+      # - run: npm run test -- -u
