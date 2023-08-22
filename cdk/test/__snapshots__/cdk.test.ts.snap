@@ -1,0 +1,3789 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`SnapshotTest 1`] = `
+{
+  "Outputs": {
+    "GreengrassBootstrapGreengrassInstallCommandForLinuxA1C12C46": {
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "sudo -E java "-Droot=/greengrass/v2" "-Dlog.store=FILE"  -jar /GreengrassInstaller/lib/Greengrass.jar --aws-region ap-northeast-1  --thing-name thing --thing-policy-name thingThingPolicy --tes-role-name  ",
+            {
+              "Ref": "GreengrassBootstrapGreengrassTESRole1C48AA92",
+            },
+            " --tes-role-alias-name ",
+            {
+              "Ref": "GreengrassBootstrapGreengrassTESRole1C48AA92",
+            },
+            "Alias --component-default-user ggc_user:ggc_group --provision true --setup-system-service true --deploy-dev-tools false",
+          ],
+        ],
+      },
+    },
+    "GreengrassBootstrapGreengrassInstallCommandForWindowsE9F9826C": {
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "java "-Droot=C:\\greengrass\\v2" "-Dlog.store=FILE"  -jar \\GreengrassInstaller/lib/Greengrass.jar --aws-region ap-northeast-1  --thing-name thing --thing-policy-name thingThingPolicy --tes-role-name  ",
+            {
+              "Ref": "GreengrassBootstrapGreengrassTESRole1C48AA92",
+            },
+            " --tes-role-alias-name ",
+            {
+              "Ref": "GreengrassBootstrapGreengrassTESRole1C48AA92",
+            },
+            "Alias --component-default-user ggc_user --provision true --setup-system-service true --deploy-dev-tools false",
+          ],
+        ],
+      },
+    },
+    "GreengrassBootstrapGreengrassInstallPolicyNameC7CAC6E3": {
+      "Value": "GreengrassBootstrapGreengrassInstallPolicy595AEE0B",
+    },
+  },
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+    "SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter": {
+      "Default": "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64",
+      "Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
+    },
+  },
+  "Resources": {
+    "BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691": {
+      "DependsOn": [
+        "BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36",
+        "BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC",
+      ],
+      "Properties": {
+        "Code": {
+          "ZipFile": "import boto3  # type: ignore
+import json
+import logging
+import urllib.request
+
+s3 = boto3.client("s3")
+
+EVENTBRIDGE_CONFIGURATION = 'EventBridgeConfiguration'
+
+CONFIGURATION_TYPES = ["TopicConfigurations", "QueueConfigurations", "LambdaFunctionConfigurations"]
+
+def handler(event: dict, context):
+  response_status = "SUCCESS"
+  error_message = ""
+  try:
+    props = event["ResourceProperties"]
+    bucket = props["BucketName"]
+    notification_configuration = props["NotificationConfiguration"]
+    request_type = event["RequestType"]
+    managed = props.get('Managed', 'true').lower() == 'true'
+    stack_id = event['StackId']
+
+    if managed:
+      config = handle_managed(request_type, notification_configuration)
+    else:
+      config = handle_unmanaged(bucket, stack_id, request_type, notification_configuration)
+
+    put_bucket_notification_configuration(bucket, config)
+  except Exception as e:
+    logging.exception("Failed to put bucket notification configuration")
+    response_status = "FAILED"
+    error_message = f"Error: {str(e)}. "
+  finally:
+    submit_response(event, context, response_status, error_message)
+
+def handle_managed(request_type, notification_configuration):
+  if request_type == 'Delete':
+    return {}
+  return notification_configuration
+
+def handle_unmanaged(bucket, stack_id, request_type, notification_configuration):
+  external_notifications = find_external_notifications(bucket, stack_id)
+
+  if request_type == 'Delete':
+    return external_notifications
+
+  def with_id(notification):
+    notification['Id'] = f"{stack_id}-{hash(json.dumps(notification, sort_keys=True))}"
+    return notification
+
+  notifications = {}
+  for t in CONFIGURATION_TYPES:
+    external = external_notifications.get(t, [])
+    incoming = [with_id(n) for n in notification_configuration.get(t, [])]
+    notifications[t] = external + incoming
+
+  if EVENTBRIDGE_CONFIGURATION in notification_configuration:
+    notifications[EVENTBRIDGE_CONFIGURATION] = notification_configuration[EVENTBRIDGE_CONFIGURATION]
+  elif EVENTBRIDGE_CONFIGURATION in external_notifications:
+    notifications[EVENTBRIDGE_CONFIGURATION] = external_notifications[EVENTBRIDGE_CONFIGURATION]
+
+  return notifications
+
+def find_external_notifications(bucket, stack_id):
+  existing_notifications = get_bucket_notification_configuration(bucket)
+  external_notifications = {}
+  for t in CONFIGURATION_TYPES:
+    external_notifications[t] = [n for n in existing_notifications.get(t, []) if not n['Id'].startswith(f"{stack_id}-")]
+
+  if EVENTBRIDGE_CONFIGURATION in existing_notifications:
+    external_notifications[EVENTBRIDGE_CONFIGURATION] = existing_notifications[EVENTBRIDGE_CONFIGURATION]
+
+  return external_notifications
+
+def get_bucket_notification_configuration(bucket):
+  return s3.get_bucket_notification_configuration(Bucket=bucket)
+
+def put_bucket_notification_configuration(bucket, notification_configuration):
+  s3.put_bucket_notification_configuration(Bucket=bucket, NotificationConfiguration=notification_configuration)
+
+def submit_response(event: dict, context, response_status: str, error_message: str):
+  response_body = json.dumps(
+    {
+      "Status": response_status,
+      "Reason": f"{error_message}See the details in CloudWatch Log Stream: {context.log_stream_name}",
+      "PhysicalResourceId": event.get("PhysicalResourceId") or event["LogicalResourceId"],
+      "StackId": event["StackId"],
+      "RequestId": event["RequestId"],
+      "LogicalResourceId": event["LogicalResourceId"],
+      "NoEcho": False,
+    }
+  ).encode("utf-8")
+  headers = {"content-type": "", "content-length": str(len(response_body))}
+  try:
+    req = urllib.request.Request(url=event["ResponseURL"], headers=headers, data=response_body, method="PUT")
+    with urllib.request.urlopen(req) as response:
+      print(response.read().decode("utf-8"))
+    print("Status code: " + response.reason)
+  except Exception as e:
+      print("send(..) failed executing request.urlopen(..): " + str(e))
+",
+        },
+        "Description": "AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)",
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.9",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:PutBucketNotification",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36",
+        "Roles": [
+          {
+            "Ref": "BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "ComponentBucketAutoDeleteObjectsCustomResourceD090A7AD": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "ComponentBucketPolicyDB733BCA",
+      ],
+      "Properties": {
+        "BucketName": {
+          "Ref": "ComponentBucketD0D4EF23",
+        },
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "Custom::S3AutoDeleteObjects",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "ComponentBucketD0D4EF23": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "BucketName": "gdk-industrial-platform-ap-northeast-1-123456789012",
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "Tags": [
+          {
+            "Key": "aws-cdk:auto-delete-objects",
+            "Value": "true",
+          },
+        ],
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "ComponentBucketPolicyDB733BCA": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "ComponentBucketD0D4EF23",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ComponentBucketD0D4EF23",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "ComponentBucketD0D4EF23",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::GetAtt": [
+                    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+                    "Arn",
+                  ],
+                },
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ComponentBucketD0D4EF23",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "ComponentBucketD0D4EF23",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+    "CsvFileProcessorHandler2CD3EC2A": {
+      "DependsOn": [
+        "CsvFileProcessorHandlerServiceRoleDefaultPolicyB6B8A2A7",
+        "CsvFileProcessorHandlerServiceRole1B3BBB25",
+      ],
+      "Properties": {
+        "Code": {
+          "ImageUri": {
+            "Fn::Sub": "123456789012.dkr.ecr.ap-northeast-1.\${AWS::URLSuffix}/cdk-hnb659fds-container-assets-123456789012-ap-northeast-1:de1614ea79fd9a1de895a79ec943e88a724f9712108faf7572e6c8bea706fa8e",
+          },
+        },
+        "Environment": {
+          "Variables": {
+            "TARGET_BUCKET": {
+              "Ref": "StoragefileProcessedBucketEB707A6E",
+            },
+          },
+        },
+        "PackageType": "Image",
+        "Role": {
+          "Fn::GetAtt": [
+            "CsvFileProcessorHandlerServiceRole1B3BBB25",
+            "Arn",
+          ],
+        },
+        "Timeout": 60,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "CsvFileProcessorHandlerServiceRole1B3BBB25": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "CsvFileProcessorHandlerServiceRoleDefaultPolicyB6B8A2A7": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "StoragefileRawBucket9361879C",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "StoragefileRawBucket9361879C",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "StoragefileProcessedBucketEB707A6E",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "StoragefileProcessedBucketEB707A6E",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "CsvFileProcessorHandlerServiceRoleDefaultPolicyB6B8A2A7",
+        "Roles": [
+          {
+            "Ref": "CsvFileProcessorHandlerServiceRole1B3BBB25",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536": {
+      "DependsOn": [
+        "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF",
+        "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": "cdk-hnb659fds-assets-123456789012-ap-northeast-1",
+          "S3Key": "9eb41a5505d37607ac419321497a4f8c21cf0ee1f9b4a6b29aa04301aea5c7fd.zip",
+        },
+        "Environment": {
+          "Variables": {
+            "AWS_CA_BUNDLE": "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
+          },
+        },
+        "Handler": "index.handler",
+        "Layers": [
+          {
+            "Ref": "VirtualDeviceDeployScriptAwsCliLayer9A376698",
+          },
+        ],
+        "Role": {
+          "Fn::GetAtt": [
+            "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.9",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::cdk-hnb659fds-assets-123456789012-ap-northeast-1",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::cdk-hnb659fds-assets-123456789012-ap-northeast-1/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "VirtualDeviceOpcuaDummyServerBucketFD7FF049",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "VirtualDeviceOpcuaDummyServerBucketFD7FF049",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF",
+        "Roles": [
+          {
+            "Ref": "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F": {
+      "DependsOn": [
+        "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": "cdk-hnb659fds-assets-123456789012-ap-northeast-1",
+          "S3Key": "a657308e723bb9460b800cb3b47dadb74e28243edfe246bf7755c45ec312eb97.zip",
+        },
+        "Description": {
+          "Fn::Join": [
+            "",
+            [
+              "Lambda function for auto-deleting objects in ",
+              {
+                "Ref": "StorageopcRawBucket6C513845",
+              },
+              " S3 bucket.",
+            ],
+          ],
+        },
+        "Handler": "index.handler",
+        "MemorySize": 128,
+        "Role": {
+          "Fn::GetAtt": [
+            "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs18.x",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Sub": "arn:\${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "DatacatalogIndustrialPlatformDatabase5CA466FA": {
+      "Properties": {
+        "CatalogId": "123456789012",
+        "DatabaseInput": {
+          "Name": "industrial_platform",
+        },
+      },
+      "Type": "AWS::Glue::Database",
+    },
+    "DatacatalogOpcProcessedTableE52E5656": {
+      "Properties": {
+        "CatalogId": "123456789012",
+        "DatabaseName": {
+          "Ref": "DatacatalogIndustrialPlatformDatabase5CA466FA",
+        },
+        "TableInput": {
+          "Description": "opc_processed generated by CDK",
+          "Name": "opc_processed",
+          "Parameters": {
+            "classification": "parquet",
+            "has_encrypted_data": true,
+            "projection.datehour.format": "yyyy/MM/dd/HH",
+            "projection.datehour.interval": 1,
+            "projection.datehour.interval.unit": "HOURS",
+            "projection.datehour.range": "2023/01/01/00,NOW",
+            "projection.datehour.type": "date",
+            "projection.enabled": true,
+            "projection.tag.type": "injected",
+            "storage.location.template": {
+              "Fn::Join": [
+                "",
+                [
+                  "s3://",
+                  {
+                    "Ref": "StorageopcProcessedBucketC3561F36",
+                  },
+                  "/\${tag}/\${datehour}/",
+                ],
+              ],
+            },
+          },
+          "PartitionKeys": [
+            {
+              "Name": "datehour",
+              "Type": "string",
+            },
+            {
+              "Name": "tag",
+              "Type": "string",
+            },
+          ],
+          "StorageDescriptor": {
+            "Columns": [
+              {
+                "Name": "value",
+                "Type": "struct<integervalue:int,doublevalue:double,stringvalue:string,booleanvalue:boolean>",
+              },
+              {
+                "Name": "timestamp",
+                "Type": "timestamp",
+              },
+            ],
+            "Compressed": true,
+            "InputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "Location": {
+              "Fn::Join": [
+                "",
+                [
+                  "s3://",
+                  {
+                    "Ref": "StorageopcProcessedBucketC3561F36",
+                  },
+                  "/",
+                ],
+              ],
+            },
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
+            "SerdeInfo": {
+              "SerializationLibrary": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+            },
+            "StoredAsSubDirectories": false,
+          },
+          "TableType": "EXTERNAL_TABLE",
+        },
+      },
+      "Type": "AWS::Glue::Table",
+    },
+    "DatacatalogOpcRawTable57D1DEC8": {
+      "Properties": {
+        "CatalogId": "123456789012",
+        "DatabaseName": {
+          "Ref": "DatacatalogIndustrialPlatformDatabase5CA466FA",
+        },
+        "TableInput": {
+          "Description": "opc_raw generated by CDK",
+          "Name": "opc_raw",
+          "Parameters": {
+            "classification": "json",
+            "has_encrypted_data": true,
+            "projection.datehour.format": "yyyy/MM/dd/HH",
+            "projection.datehour.interval": 1,
+            "projection.datehour.interval.unit": "HOURS",
+            "projection.datehour.range": "2023/01/01/00,NOW",
+            "projection.datehour.type": "date",
+            "projection.enabled": true,
+            "storage.location.template": {
+              "Fn::Join": [
+                "",
+                [
+                  "s3://",
+                  {
+                    "Ref": "StorageopcRawBucket6C513845",
+                  },
+                  "/\${datehour}/",
+                ],
+              ],
+            },
+          },
+          "PartitionKeys": [
+            {
+              "Name": "datehour",
+              "Type": "string",
+            },
+          ],
+          "StorageDescriptor": {
+            "Columns": [
+              {
+                "Name": "propertyalias",
+                "Type": "string",
+              },
+              {
+                "Name": "propertyvalues",
+                "Type": "array<struct<value:struct<integervalue:int,doublevalue:double,stringvalue:string,booleanvalue:boolean>,timestamp:struct<timeinseconds:double,offsetinnanos:int>,quality:string>>",
+              },
+            ],
+            "Compressed": true,
+            "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+            "Location": {
+              "Fn::Join": [
+                "",
+                [
+                  "s3://",
+                  {
+                    "Ref": "StorageopcRawBucket6C513845",
+                  },
+                  "/",
+                ],
+              ],
+            },
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "SerdeInfo": {
+              "SerializationLibrary": "org.openx.data.jsonserde.JsonSerDe",
+            },
+            "StoredAsSubDirectories": false,
+          },
+          "TableType": "EXTERNAL_TABLE",
+        },
+      },
+      "Type": "AWS::Glue::Table",
+    },
+    "DatacatalogProductionTable545B64D8": {
+      "Properties": {
+        "CatalogId": "123456789012",
+        "DatabaseName": {
+          "Ref": "DatacatalogIndustrialPlatformDatabase5CA466FA",
+        },
+        "TableInput": {
+          "Description": "production generated by CDK",
+          "Name": "production",
+          "Parameters": {
+            "classification": "csv",
+            "has_encrypted_data": true,
+            "projection.date.format": "yyyy/MM/dd",
+            "projection.date.interval": 1,
+            "projection.date.interval.unit": "DAYS",
+            "projection.date.range": "2023/01/01,NOW",
+            "projection.date.type": "date",
+            "projection.enabled": true,
+            "skip.header.line.count": "1",
+            "storage.location.template": {
+              "Fn::Join": [
+                "",
+                [
+                  "s3://",
+                  {
+                    "Ref": "StoragefileProcessedBucketEB707A6E",
+                  },
+                  "/\${date}/",
+                ],
+              ],
+            },
+          },
+          "PartitionKeys": [
+            {
+              "Name": "date",
+              "Type": "string",
+            },
+          ],
+          "StorageDescriptor": {
+            "Columns": [
+              {
+                "Name": "BatchID",
+                "Type": "string",
+              },
+              {
+                "Name": "ProductName",
+                "Type": "string",
+              },
+              {
+                "Name": "StartTime",
+                "Type": "string",
+              },
+              {
+                "Name": "EndTime",
+                "Type": "string",
+              },
+            ],
+            "Compressed": false,
+            "InputFormat": "org.apache.hadoop.mapred.TextInputFormat",
+            "Location": {
+              "Fn::Join": [
+                "",
+                [
+                  "s3://",
+                  {
+                    "Ref": "StoragefileProcessedBucketEB707A6E",
+                  },
+                  "/",
+                ],
+              ],
+            },
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+            "SerdeInfo": {
+              "SerializationLibrary": "org.apache.hadoop.hive.serde2.OpenCSVSerde",
+            },
+            "StoredAsSubDirectories": false,
+          },
+          "TableType": "EXTERNAL_TABLE",
+        },
+      },
+      "Type": "AWS::Glue::Table",
+    },
+    "FileWatcherEAAA0D27": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "GdkPublishCustomResourceHandler34798742f5624fa8ba7b467e036cb465482044A5",
+            "Arn",
+          ],
+        },
+        "codeBuildProjectName": {
+          "Ref": "FileWatcherProjectB5239F22",
+        },
+        "componentName": "com.example.file-watcher",
+        "extractPath": "file-watcher",
+        "sourceBucketName": "cdk-hnb659fds-assets-123456789012-ap-northeast-1",
+        "sourceObjectKey": "c226648d9b1907b1cc90dcbcbc392623916e8ac47347921c1b4b1d152d529f9e.zip",
+      },
+      "Type": "Custom::CDKGdkPublish",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "FileWatcherProjectB5239F22": {
+      "Properties": {
+        "Artifacts": {
+          "Type": "NO_ARTIFACTS",
+        },
+        "Cache": {
+          "Type": "NO_CACHE",
+        },
+        "EncryptionKey": "alias/aws/s3",
+        "Environment": {
+          "ComputeType": "BUILD_GENERAL1_SMALL",
+          "Image": "aws/codebuild/standard:5.0",
+          "ImagePullCredentialsType": "CODEBUILD",
+          "PrivilegedMode": false,
+          "Type": "LINUX_CONTAINER",
+        },
+        "ServiceRole": {
+          "Fn::GetAtt": [
+            "FileWatcherProjectRole36FE60F5",
+            "Arn",
+          ],
+        },
+        "Source": {
+          "BuildSpec": "{
+  "version": "0.2",
+  "phases": {
+    "install": {
+      "runtime-versions": {
+        "python": "3.9"
+      },
+      "commands": [
+        "repoUrl='https://api.github.com/repos/aws-greengrass/aws-greengrass-gdk-cli/tags'",
+        "tag=$(curl -s $repoUrl | sed -n 's/.*\\"name\\": \\"\\\\(.*\\\\)\\",.*/\\\\1/p' | head -n1)",
+        "python3 -m pip install -U \\"git+https://github.com/aws-greengrass/aws-greengrass-gdk-cli.git@$tag\\"",
+        "pythonDir=$(python -c \\"import sys; import os; print(os.path.dirname(sys.executable))\\")",
+        "export PATH=\\"$pythonDir:$PATH\\"",
+        "gdk -v"
+      ],
+      "on-failure": "CONTINUE"
+    },
+    "build": {
+      "commands": [
+        "current_dir=$(pwd)",
+        "aws s3 cp \\"$assetUrl\\" temp.zip",
+        "mkdir -p \\"$extractPath\\"",
+        "unzip temp.zip -d \\"$extractPath\\"",
+        "rm temp.zip",
+        "ls -la",
+        "cd \\"$extractPath\\"",
+        "gdk component build",
+        "gdk component publish",
+        "ls -la"
+      ]
+    },
+    "post_build": {
+      "commands": [
+        "echo Build completed on \`date\`",
+        "\\nSTATUS='SUCCESS'\\nif [ $CODEBUILD_BUILD_SUCCEEDING -ne 1 ] # Test if the build is failing\\nthen\\nSTATUS='FAILED'\\nREASON=\\"GdkPublish failed. See CloudWatch Log stream for the detailed reason: \\nhttps://$AWS_REGION.console.aws.amazon.com/cloudwatch/home?region=$AWS_REGION#logsV2:log-groups/log-group/\\\\$252Faws\\\\$252Fcodebuild\\\\$252F$projectName/log-events/$CODEBUILD_LOG_PATH\\"\\nfi\\n              ",
+        "echo \\"$STATUS\\"",
+        "accountId=$(echo $CODEBUILD_BUILD_ARN | cut -f 5 -d :)",
+        "arn=\\"arn:aws:greengrass:$AWS_REGION:$accountId:components:$componentName\\"",
+        "echo \\"$arn\\"",
+        "latestArn=$(aws greengrassv2 list-component-versions --arn \\"$arn\\" --query \\"componentVersions[0].arn\\" --output text)",
+        "echo \\"$latestArn\\"",
+        "componentVersion=$(basename \\"$latestArn\\" | cut -d\\":\\" -f9)",
+        "echo $componentVersion",
+        "\\ncat <<EOF > payload.json\\n{\\n  \\"StackId\\": \\"$stackId\\",\\n  \\"RequestId\\": \\"$requestId\\",\\n  \\"LogicalResourceId\\":\\"$logicalResourceId\\",\\n  \\"PhysicalResourceId\\": \\"$latestArn\\",\\n  \\"Status\\": \\"$STATUS\\",\\n  \\"Reason\\": \\"$REASON\\",\\n  \\"Data\\": {\\n    \\"componentVersion\\": \\"$componentVersion\\"\\n  }\\n}\\nEOF\\n",
+        "cat payload.json",
+        "curl -vv -i -X PUT -H 'Content-Type:' -d \\"@payload.json\\" \\"$responseURL\\""
+      ]
+    }
+  }
+}",
+          "Type": "NO_SOURCE",
+        },
+      },
+      "Type": "AWS::CodeBuild::Project",
+    },
+    "FileWatcherProjectRole36FE60F5": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "codebuild.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "FileWatcherProjectRoleDefaultPolicy6EEC1C79": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":logs:ap-northeast-1:123456789012:log-group:/aws/codebuild/",
+                      {
+                        "Ref": "FileWatcherProjectB5239F22",
+                      },
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":logs:ap-northeast-1:123456789012:log-group:/aws/codebuild/",
+                      {
+                        "Ref": "FileWatcherProjectB5239F22",
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "codebuild:CreateReportGroup",
+                "codebuild:CreateReport",
+                "codebuild:UpdateReport",
+                "codebuild:BatchPutTestCases",
+                "codebuild:BatchPutCodeCoverages",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":codebuild:ap-northeast-1:123456789012:report-group/",
+                    {
+                      "Ref": "FileWatcherProjectB5239F22",
+                    },
+                    "-*",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ComponentBucketD0D4EF23",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "ComponentBucketD0D4EF23",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "greengrass:CreateComponentVersion",
+                "greengrass:ListComponentVersions",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::cdk-hnb659fds-assets-123456789012-ap-northeast-1",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::cdk-hnb659fds-assets-123456789012-ap-northeast-1/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::cdk-hnb659fds-assets-123456789012-ap-northeast-1",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::cdk-hnb659fds-assets-123456789012-ap-northeast-1/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "FileWatcherProjectRoleDefaultPolicy6EEC1C79",
+        "Roles": [
+          {
+            "Ref": "FileWatcherProjectRole36FE60F5",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "GdkPublishCustomResourceHandler34798742f5624fa8ba7b467e036cb465482044A5": {
+      "DependsOn": [
+        "GdkPublishCustomResourceHandler34798742f5624fa8ba7b467e036cb465ServiceRoleDefaultPolicy647DE598",
+        "GdkPublishCustomResourceHandler34798742f5624fa8ba7b467e036cb465ServiceRoleA1FDDD81",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": "cdk-hnb659fds-assets-123456789012-ap-northeast-1",
+          "S3Key": "4d8b6b0204d23acdfe522802500cf4346eb354758db76500a5a8cf6f114dd730.zip",
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "GdkPublishCustomResourceHandler34798742f5624fa8ba7b467e036cb465ServiceRoleA1FDDD81",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs18.x",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "GdkPublishCustomResourceHandler34798742f5624fa8ba7b467e036cb465ServiceRoleA1FDDD81": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "GdkPublishCustomResourceHandler34798742f5624fa8ba7b467e036cb465ServiceRoleDefaultPolicy647DE598": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "codebuild:StartBuild",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "OpcArchiverProject1F034902",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": "greengrass:DeleteComponent",
+              "Effect": "Allow",
+              "Resource": "arn:aws:greengrass:ap-northeast-1:123456789012:components:com.example.opc-archiver:versions:*",
+            },
+            {
+              "Action": "codebuild:StartBuild",
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "FileWatcherProjectB5239F22",
+                  "Arn",
+                ],
+              },
+            },
+            {
+              "Action": "greengrass:DeleteComponent",
+              "Effect": "Allow",
+              "Resource": "arn:aws:greengrass:ap-northeast-1:123456789012:components:com.example.file-watcher:versions:*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "GdkPublishCustomResourceHandler34798742f5624fa8ba7b467e036cb465ServiceRoleDefaultPolicy647DE598",
+        "Roles": [
+          {
+            "Ref": "GdkPublishCustomResourceHandler34798742f5624fa8ba7b467e036cb465ServiceRoleA1FDDD81",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "GreengrassBootstrapGreengrassInstallPolicy595AEE0B": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "iam:AttachRolePolicy",
+                "iam:CreatePolicy",
+                "iam:CreateRole",
+                "iam:GetPolicy",
+                "iam:GetRole",
+                "iam:PassRole",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:iam::123456789012:role/",
+                      {
+                        "Ref": "GreengrassBootstrapGreengrassTESRole1C48AA92",
+                      },
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:iam::123456789012:policy/",
+                      {
+                        "Ref": "GreengrassBootstrapGreengrassTESRole1C48AA92",
+                      },
+                      "Access",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "iot:AddThingToThingGroup",
+                "iot:AttachPolicy",
+                "iot:AttachThingPrincipal",
+                "iot:CreateKeysAndCertificate",
+                "iot:CreatePolicy",
+                "iot:CreateRoleAlias",
+                "iot:CreateThing",
+                "iot:CreateThingGroup",
+                "iot:DescribeEndpoint",
+                "iot:DescribeRoleAlias",
+                "iot:DescribeThingGroup",
+                "iot:GetPolicy",
+                "greengrass:CreateDeployment",
+                "iot:CancelJob",
+                "iot:CreateJob",
+                "iot:DeleteThingShadow",
+                "iot:DescribeJob",
+                "iot:DescribeThing",
+                "iot:GetThingShadow",
+                "iot:UpdateJob",
+                "iot:UpdateThingShadow",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "GreengrassBootstrapGreengrassInstallPolicy595AEE0B",
+        "Roles": [
+          {
+            "Ref": "VirtualDeviceRole97E1923A",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "GreengrassBootstrapGreengrassRoleAliasCA418E97": {
+      "Properties": {
+        "RoleAlias": {
+          "Fn::Join": [
+            "",
+            [
+              {
+                "Ref": "GreengrassBootstrapGreengrassTESRole1C48AA92",
+              },
+              "Alias",
+            ],
+          ],
+        },
+        "RoleArn": {
+          "Fn::GetAtt": [
+            "GreengrassBootstrapGreengrassTESRole1C48AA92",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::IoT::RoleAlias",
+    },
+    "GreengrassBootstrapGreengrassTESRole1C48AA92": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "credentials.iot.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Ref": "GreengrassBootstrapGreengrassTESRolePolicy2B708737",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "GreengrassBootstrapGreengrassTESRoleDefaultPolicyE364A1B4": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "iotsitewise:BatchPutAssetPropertyValue",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "StorageopcRawBucket6C513845",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "StorageopcRawBucket6C513845",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "StoragefileRawBucket9361879C",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "StoragefileRawBucket9361879C",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "GreengrassBootstrapGreengrassTESRoleDefaultPolicyE364A1B4",
+        "Roles": [
+          {
+            "Ref": "GreengrassBootstrapGreengrassTESRole1C48AA92",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "GreengrassBootstrapGreengrassTESRolePolicy2B708737": {
+      "Properties": {
+        "Description": "",
+        "Path": "/",
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "iot:Receive",
+                "iot:Subscribe",
+                "iot:Connect",
+                "iot:Publish",
+                "iot:DescribeCertificate",
+                "logs:CreateLogStream",
+                "logs:DescribeLogStreams",
+                "logs:CreateLogGroup",
+                "logs:PutLogEvents",
+                "s3:GetBucketLocation",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ComponentBucketD0D4EF23",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "ComponentBucketD0D4EF23",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::ManagedPolicy",
+    },
+    "GreengrassBootstrapGreengrassThingPolicy76957D4A": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "iot:Connect",
+                "iot:Publish",
+                "iot:Subscribe",
+                "iot:Receive",
+                "greengrass:*",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "thingThingPolicy",
+      },
+      "Type": "AWS::IoT::Policy",
+    },
+    "OpcArchiverC4A9C5B5": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "GdkPublishCustomResourceHandler34798742f5624fa8ba7b467e036cb465482044A5",
+            "Arn",
+          ],
+        },
+        "codeBuildProjectName": {
+          "Ref": "OpcArchiverProject1F034902",
+        },
+        "componentName": "com.example.opc-archiver",
+        "extractPath": "opc-archiver",
+        "sourceBucketName": "cdk-hnb659fds-assets-123456789012-ap-northeast-1",
+        "sourceObjectKey": "1aff5f1853bfb216d54bffb5f9fed8937123cf73de4257e095ddbcecd5adcc0e.zip",
+      },
+      "Type": "Custom::CDKGdkPublish",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "OpcArchiverProject1F034902": {
+      "Properties": {
+        "Artifacts": {
+          "Type": "NO_ARTIFACTS",
+        },
+        "Cache": {
+          "Type": "NO_CACHE",
+        },
+        "EncryptionKey": "alias/aws/s3",
+        "Environment": {
+          "ComputeType": "BUILD_GENERAL1_SMALL",
+          "Image": "aws/codebuild/standard:5.0",
+          "ImagePullCredentialsType": "CODEBUILD",
+          "PrivilegedMode": false,
+          "Type": "LINUX_CONTAINER",
+        },
+        "ServiceRole": {
+          "Fn::GetAtt": [
+            "OpcArchiverProjectRole0726F01C",
+            "Arn",
+          ],
+        },
+        "Source": {
+          "BuildSpec": "{
+  "version": "0.2",
+  "phases": {
+    "install": {
+      "runtime-versions": {
+        "python": "3.9"
+      },
+      "commands": [
+        "repoUrl='https://api.github.com/repos/aws-greengrass/aws-greengrass-gdk-cli/tags'",
+        "tag=$(curl -s $repoUrl | sed -n 's/.*\\"name\\": \\"\\\\(.*\\\\)\\",.*/\\\\1/p' | head -n1)",
+        "python3 -m pip install -U \\"git+https://github.com/aws-greengrass/aws-greengrass-gdk-cli.git@$tag\\"",
+        "pythonDir=$(python -c \\"import sys; import os; print(os.path.dirname(sys.executable))\\")",
+        "export PATH=\\"$pythonDir:$PATH\\"",
+        "gdk -v"
+      ],
+      "on-failure": "CONTINUE"
+    },
+    "build": {
+      "commands": [
+        "current_dir=$(pwd)",
+        "aws s3 cp \\"$assetUrl\\" temp.zip",
+        "mkdir -p \\"$extractPath\\"",
+        "unzip temp.zip -d \\"$extractPath\\"",
+        "rm temp.zip",
+        "ls -la",
+        "cd \\"$extractPath\\"",
+        "gdk component build",
+        "gdk component publish",
+        "ls -la"
+      ]
+    },
+    "post_build": {
+      "commands": [
+        "echo Build completed on \`date\`",
+        "\\nSTATUS='SUCCESS'\\nif [ $CODEBUILD_BUILD_SUCCEEDING -ne 1 ] # Test if the build is failing\\nthen\\nSTATUS='FAILED'\\nREASON=\\"GdkPublish failed. See CloudWatch Log stream for the detailed reason: \\nhttps://$AWS_REGION.console.aws.amazon.com/cloudwatch/home?region=$AWS_REGION#logsV2:log-groups/log-group/\\\\$252Faws\\\\$252Fcodebuild\\\\$252F$projectName/log-events/$CODEBUILD_LOG_PATH\\"\\nfi\\n              ",
+        "echo \\"$STATUS\\"",
+        "accountId=$(echo $CODEBUILD_BUILD_ARN | cut -f 5 -d :)",
+        "arn=\\"arn:aws:greengrass:$AWS_REGION:$accountId:components:$componentName\\"",
+        "echo \\"$arn\\"",
+        "latestArn=$(aws greengrassv2 list-component-versions --arn \\"$arn\\" --query \\"componentVersions[0].arn\\" --output text)",
+        "echo \\"$latestArn\\"",
+        "componentVersion=$(basename \\"$latestArn\\" | cut -d\\":\\" -f9)",
+        "echo $componentVersion",
+        "\\ncat <<EOF > payload.json\\n{\\n  \\"StackId\\": \\"$stackId\\",\\n  \\"RequestId\\": \\"$requestId\\",\\n  \\"LogicalResourceId\\":\\"$logicalResourceId\\",\\n  \\"PhysicalResourceId\\": \\"$latestArn\\",\\n  \\"Status\\": \\"$STATUS\\",\\n  \\"Reason\\": \\"$REASON\\",\\n  \\"Data\\": {\\n    \\"componentVersion\\": \\"$componentVersion\\"\\n  }\\n}\\nEOF\\n",
+        "cat payload.json",
+        "curl -vv -i -X PUT -H 'Content-Type:' -d \\"@payload.json\\" \\"$responseURL\\""
+      ]
+    }
+  }
+}",
+          "Type": "NO_SOURCE",
+        },
+      },
+      "Type": "AWS::CodeBuild::Project",
+    },
+    "OpcArchiverProjectRole0726F01C": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "codebuild.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "OpcArchiverProjectRoleDefaultPolicy5A61D484": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":logs:ap-northeast-1:123456789012:log-group:/aws/codebuild/",
+                      {
+                        "Ref": "OpcArchiverProject1F034902",
+                      },
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":logs:ap-northeast-1:123456789012:log-group:/aws/codebuild/",
+                      {
+                        "Ref": "OpcArchiverProject1F034902",
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "codebuild:CreateReportGroup",
+                "codebuild:CreateReport",
+                "codebuild:UpdateReport",
+                "codebuild:BatchPutTestCases",
+                "codebuild:BatchPutCodeCoverages",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":codebuild:ap-northeast-1:123456789012:report-group/",
+                    {
+                      "Ref": "OpcArchiverProject1F034902",
+                    },
+                    "-*",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ComponentBucketD0D4EF23",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "ComponentBucketD0D4EF23",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "greengrass:CreateComponentVersion",
+                "greengrass:ListComponentVersions",
+              ],
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::cdk-hnb659fds-assets-123456789012-ap-northeast-1",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::cdk-hnb659fds-assets-123456789012-ap-northeast-1/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::cdk-hnb659fds-assets-123456789012-ap-northeast-1",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":s3:::cdk-hnb659fds-assets-123456789012-ap-northeast-1/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "OpcArchiverProjectRoleDefaultPolicy5A61D484",
+        "Roles": [
+          {
+            "Ref": "OpcArchiverProjectRole0726F01C",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "OpcProcessorHandlerF29BE22C": {
+      "DependsOn": [
+        "OpcProcessorHandlerServiceRoleDefaultPolicyF7C59B6C",
+        "OpcProcessorHandlerServiceRole0AA3FD17",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": "cdk-hnb659fds-assets-123456789012-ap-northeast-1",
+          "S3Key": "2a72b28dedc1aa493f3db2dbaef63119c8eb072e19b643e3cd5893dee6d8362f.zip",
+        },
+        "Environment": {
+          "Variables": {
+            "DATABASE": {
+              "Ref": "DatacatalogIndustrialPlatformDatabase5CA466FA",
+            },
+            "SOURCE_TABLE": {
+              "Ref": "DatacatalogOpcRawTable57D1DEC8",
+            },
+            "TARGET_TABLE": {
+              "Ref": "DatacatalogOpcProcessedTableE52E5656",
+            },
+            "WORKGROUP_NAME": "opc-processor-workgroup",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "OpcProcessorHandlerServiceRole0AA3FD17",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.9",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "OpcProcessorHandlerServiceRole0AA3FD17": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "OpcProcessorHandlerServiceRoleDefaultPolicyF7C59B6C": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "OpcProcessorWorkGroupResultBucketE6DBEFD9",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "OpcProcessorWorkGroupResultBucketE6DBEFD9",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "StorageopcRawBucket6C513845",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "StorageopcRawBucket6C513845",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:DeleteObject*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging",
+                "s3:Abort*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "StorageopcProcessedBucketC3561F36",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "StorageopcProcessedBucketC3561F36",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "athena:GetWorkGroup",
+                "athena:StartQueryExecution",
+                "athena:StopQueryExecution",
+                "athena:GetQueryExecution",
+                "athena:GetQueryResults",
+                "athena:GetDataCatalog",
+              ],
+              "Effect": "Allow",
+              "Resource": "arn:aws:athena:*:123456789012:workgroup/opc-processor-workgroup",
+            },
+            {
+              "Action": [
+                "glue:GetDatabase",
+                "glue:GetDatabases",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":glue:ap-northeast-1:123456789012:catalog",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":glue:ap-northeast-1:123456789012:database/",
+                      {
+                        "Ref": "DatacatalogIndustrialPlatformDatabase5CA466FA",
+                      },
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "glue:GetDatabase",
+                "glue:GetTable",
+                "glue:GetTables",
+                "glue:GetPartition",
+                "glue:GetPartitions",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":glue:ap-northeast-1:123456789012:catalog",
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":glue:ap-northeast-1:123456789012:database/",
+                      {
+                        "Ref": "DatacatalogIndustrialPlatformDatabase5CA466FA",
+                      },
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":glue:ap-northeast-1:123456789012:table/",
+                      {
+                        "Ref": "DatacatalogIndustrialPlatformDatabase5CA466FA",
+                      },
+                      "/",
+                      {
+                        "Ref": "DatacatalogOpcRawTable57D1DEC8",
+                      },
+                    ],
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition",
+                      },
+                      ":glue:ap-northeast-1:123456789012:table/",
+                      {
+                        "Ref": "DatacatalogIndustrialPlatformDatabase5CA466FA",
+                      },
+                      "/",
+                      {
+                        "Ref": "DatacatalogOpcProcessedTableE52E5656",
+                      },
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "OpcProcessorHandlerServiceRoleDefaultPolicyF7C59B6C",
+        "Roles": [
+          {
+            "Ref": "OpcProcessorHandlerServiceRole0AA3FD17",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "OpcProcessorScheduleRule55F2927B": {
+      "Properties": {
+        "ScheduleExpression": "cron(10 * * * ? *)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "OpcProcessorHandlerF29BE22C",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "OpcProcessorScheduleRuleAllowEventRuleMyTestStackOpcProcessorHandlerEA8F6571F1856F47": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "OpcProcessorHandlerF29BE22C",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "OpcProcessorScheduleRule55F2927B",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "OpcProcessorWorkGroupResultBucketAutoDeleteObjectsCustomResourceCFADC631": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "OpcProcessorWorkGroupResultBucketPolicyC2B82A11",
+      ],
+      "Properties": {
+        "BucketName": {
+          "Ref": "OpcProcessorWorkGroupResultBucketE6DBEFD9",
+        },
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "Custom::S3AutoDeleteObjects",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "OpcProcessorWorkGroupResultBucketE6DBEFD9": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "Tags": [
+          {
+            "Key": "aws-cdk:auto-delete-objects",
+            "Value": "true",
+          },
+        ],
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "OpcProcessorWorkGroupResultBucketPolicyC2B82A11": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "OpcProcessorWorkGroupResultBucketE6DBEFD9",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::GetAtt": [
+                    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+                    "Arn",
+                  ],
+                },
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "OpcProcessorWorkGroupResultBucketE6DBEFD9",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "OpcProcessorWorkGroupResultBucketE6DBEFD9",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+    "OpcProcessorWorkGroupWg007B022A": {
+      "Properties": {
+        "Name": "opc-processor-workgroup",
+        "RecursiveDeleteOption": true,
+        "WorkGroupConfiguration": {
+          "ResultConfiguration": {
+            "OutputLocation": {
+              "Fn::Join": [
+                "",
+                [
+                  "s3://",
+                  {
+                    "Ref": "OpcProcessorWorkGroupResultBucketE6DBEFD9",
+                  },
+                ],
+              ],
+            },
+          },
+        },
+      },
+      "Type": "AWS::Athena::WorkGroup",
+    },
+    "SitewiseGateway4497BB92": {
+      "Properties": {
+        "GatewayCapabilitySummaries": [
+          {
+            "CapabilityConfiguration": "{"sources":[{"name":"SampleOpcServer","endpoint":{"certificateTrust":{"type":"TrustAny"},"endpointUri":"opc.tcp://localhost:4840","securityPolicy":"NONE","messageSecurityMode":"NONE","identityProvider":{"type":"Anonymous"},"nodeFilterRules":[{"action":"INCLUDE","definition":{"type":"OpcUaRootPath","rootPath":"/"}}]},"measurementDataStreamPrefix":"","destination":{"type":"StreamManager","streamName":"opc_archiver_stream","streamBufferSize":4}}]}",
+            "CapabilityNamespace": "iotsitewise:opcuacollector:2",
+          },
+        ],
+        "GatewayName": "sitewise-gateway",
+        "GatewayPlatform": {
+          "GreengrassV2": {
+            "CoreDeviceThingName": "thing",
+          },
+        },
+      },
+      "Type": "AWS::IoTSiteWise::Gateway",
+    },
+    "StoragefileProcessedBucketAutoDeleteObjectsCustomResource87F26A1C": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "StoragefileProcessedBucketPolicy3C222551",
+      ],
+      "Properties": {
+        "BucketName": {
+          "Ref": "StoragefileProcessedBucketEB707A6E",
+        },
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "Custom::S3AutoDeleteObjects",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "StoragefileProcessedBucketEB707A6E": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "Tags": [
+          {
+            "Key": "aws-cdk:auto-delete-objects",
+            "Value": "true",
+          },
+        ],
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "StoragefileProcessedBucketPolicy3C222551": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "StoragefileProcessedBucketEB707A6E",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::GetAtt": [
+                    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+                    "Arn",
+                  ],
+                },
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "StoragefileProcessedBucketEB707A6E",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "StoragefileProcessedBucketEB707A6E",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+    "StoragefileRawBucket9361879C": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "Tags": [
+          {
+            "Key": "aws-cdk:auto-delete-objects",
+            "Value": "true",
+          },
+        ],
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "StoragefileRawBucketAllowBucketNotificationsToMyTestStackCsvFileProcessorHandlerCABAB2689DBDB91B": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "CsvFileProcessorHandler2CD3EC2A",
+            "Arn",
+          ],
+        },
+        "Principal": "s3.amazonaws.com",
+        "SourceAccount": "123456789012",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "StoragefileRawBucket9361879C",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "StoragefileRawBucketAutoDeleteObjectsCustomResource831785E4": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "StoragefileRawBucketPolicyCCA77044",
+      ],
+      "Properties": {
+        "BucketName": {
+          "Ref": "StoragefileRawBucket9361879C",
+        },
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "Custom::S3AutoDeleteObjects",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "StoragefileRawBucketNotifications1F646F17": {
+      "DependsOn": [
+        "StoragefileRawBucketAllowBucketNotificationsToMyTestStackCsvFileProcessorHandlerCABAB2689DBDB91B",
+      ],
+      "Properties": {
+        "BucketName": {
+          "Ref": "StoragefileRawBucket9361879C",
+        },
+        "Managed": true,
+        "NotificationConfiguration": {
+          "LambdaFunctionConfigurations": [
+            {
+              "Events": [
+                "s3:ObjectCreated:*",
+              ],
+              "LambdaFunctionArn": {
+                "Fn::GetAtt": [
+                  "CsvFileProcessorHandler2CD3EC2A",
+                  "Arn",
+                ],
+              },
+            },
+          ],
+        },
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "Custom::S3BucketNotifications",
+    },
+    "StoragefileRawBucketPolicyCCA77044": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "StoragefileRawBucket9361879C",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::GetAtt": [
+                    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+                    "Arn",
+                  ],
+                },
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "StoragefileRawBucket9361879C",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "StoragefileRawBucket9361879C",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+    "StorageopcProcessedBucketAutoDeleteObjectsCustomResourceDECA195A": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "StorageopcProcessedBucketPolicy52E75E07",
+      ],
+      "Properties": {
+        "BucketName": {
+          "Ref": "StorageopcProcessedBucketC3561F36",
+        },
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "Custom::S3AutoDeleteObjects",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "StorageopcProcessedBucketC3561F36": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Status": "Enabled",
+              "Transitions": [
+                {
+                  "StorageClass": "STANDARD_IA",
+                  "TransitionInDays": 90,
+                },
+                {
+                  "StorageClass": "GLACIER_IR",
+                  "TransitionInDays": 365,
+                },
+                {
+                  "StorageClass": "DEEP_ARCHIVE",
+                  "TransitionInDays": 7300,
+                },
+              ],
+            },
+          ],
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "Tags": [
+          {
+            "Key": "aws-cdk:auto-delete-objects",
+            "Value": "true",
+          },
+        ],
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "StorageopcProcessedBucketPolicy52E75E07": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "StorageopcProcessedBucketC3561F36",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::GetAtt": [
+                    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+                    "Arn",
+                  ],
+                },
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "StorageopcProcessedBucketC3561F36",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "StorageopcProcessedBucketC3561F36",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+    "StorageopcRawBucket6C513845": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Status": "Enabled",
+              "Transitions": [
+                {
+                  "StorageClass": "STANDARD_IA",
+                  "TransitionInDays": 90,
+                },
+                {
+                  "StorageClass": "GLACIER_IR",
+                  "TransitionInDays": 365,
+                },
+                {
+                  "StorageClass": "DEEP_ARCHIVE",
+                  "TransitionInDays": 7300,
+                },
+              ],
+            },
+          ],
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "Tags": [
+          {
+            "Key": "aws-cdk:auto-delete-objects",
+            "Value": "true",
+          },
+        ],
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "StorageopcRawBucketAutoDeleteObjectsCustomResourceE382F99F": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "StorageopcRawBucketPolicyC65902F4",
+      ],
+      "Properties": {
+        "BucketName": {
+          "Ref": "StorageopcRawBucket6C513845",
+        },
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "Custom::S3AutoDeleteObjects",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "StorageopcRawBucketPolicyC65902F4": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "StorageopcRawBucket6C513845",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::GetAtt": [
+                    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+                    "Arn",
+                  ],
+                },
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "StorageopcRawBucket6C513845",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "StorageopcRawBucket6C513845",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+    "VirtualDeviceDeployScriptAwsCliLayer9A376698": {
+      "Properties": {
+        "Content": {
+          "S3Bucket": "cdk-hnb659fds-assets-123456789012-ap-northeast-1",
+          "S3Key": "e2277687077a2abf9ae1af1cc9565e6715e2ebb62f79ec53aa75a1af9298f642.zip",
+        },
+        "Description": "/opt/awscli/aws",
+      },
+      "Type": "AWS::Lambda::LayerVersion",
+    },
+    "VirtualDeviceDeployScriptCustomResource9D2F17EB": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "DestinationBucketName": {
+          "Ref": "VirtualDeviceOpcuaDummyServerBucketFD7FF049",
+        },
+        "Prune": true,
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536",
+            "Arn",
+          ],
+        },
+        "SourceBucketNames": [
+          "cdk-hnb659fds-assets-123456789012-ap-northeast-1",
+        ],
+        "SourceObjectKeys": [
+          "3e18a9f01c3f42d7ae9a95f4cce58a7e8f4f89271c2b15bbf21983d270b1ba5e.zip",
+        ],
+      },
+      "Type": "Custom::CDKBucketDeployment",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "VirtualDeviceInstanceD866553F": {
+      "DependsOn": [
+        "VirtualDeviceRoleDefaultPolicy33F8526C",
+        "VirtualDeviceRole97E1923A",
+      ],
+      "Properties": {
+        "AvailabilityZone": "dummy1a",
+        "IamInstanceProfile": {
+          "Ref": "VirtualDeviceInstanceInstanceProfile571937B7",
+        },
+        "ImageId": {
+          "Ref": "SsmParameterValueawsserviceamiamazonlinuxlatestal2023amikernel61x8664C96584B6F00A464EAD1953AFF4B05118Parameter",
+        },
+        "InstanceType": "t2.large",
+        "SecurityGroupIds": [
+          {
+            "Fn::GetAtt": [
+              "VirtualDeviceInstanceInstanceSecurityGroup1C10A601",
+              "GroupId",
+            ],
+          },
+        ],
+        "SubnetId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet1Subnet35721A9E",
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Instance",
+          },
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#!/bin/bash
+cd /home/ssm-user
+sudo yum install -y java-11-amazon-corretto-headless nodejs tree python3-pip
+sudo adduser --system ggc_user
+sudo groupadd --system ggc_group
+sudo mkdir -p /home/ggc_user/data
+sudo chown -R ggc_user:ggc_user /home/ggc_user
+curl -s https://d2s8p88vqu9w66.cloudfront.net/releases/greengrass-nucleus-latest.zip > greengrass-nucleus-latest.zip
+unzip greengrass-nucleus-latest.zip -d GreengrassInstaller && rm greengrass-nucleus-latest.zip
+java -jar ./GreengrassInstaller/lib/Greengrass.jar --version
+echo "root    ALL=(ALL:ALL) ALL" | sudo tee -a /etc/sudoers
+echo install opcua commander
+npm i -g opcua-commander
+aws s3 cp s3://",
+                {
+                  "Ref": "VirtualDeviceOpcuaDummyServerBucketFD7FF049",
+                },
+                "/main.py main.py
+aws s3 cp s3://",
+                {
+                  "Ref": "VirtualDeviceOpcuaDummyServerBucketFD7FF049",
+                },
+                "/opcua.service opcua.service
+sudo mkdir /usr/bin/opcua
+sudo mv main.py /usr/bin/opcua
+sudo mv opcua.service /etc/systemd/system/opcua.service
+echo install opcua package
+pip3 install opcua==0.98.13
+sudo systemctl daemon-reload
+sudo systemctl enable opcua
+sudo systemctl restart opcua
+sudo systemctl status opcua",
+              ],
+            ],
+          },
+        },
+      },
+      "Type": "AWS::EC2::Instance",
+    },
+    "VirtualDeviceInstanceInstanceProfile571937B7": {
+      "Properties": {
+        "Roles": [
+          {
+            "Ref": "VirtualDeviceRole97E1923A",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::InstanceProfile",
+    },
+    "VirtualDeviceInstanceInstanceSecurityGroup1C10A601": {
+      "Properties": {
+        "GroupDescription": "MyTestStack/VirtualDevice/Instance/InstanceSecurityGroup",
+        "SecurityGroupEgress": [
+          {
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allow all outbound traffic by default",
+            "IpProtocol": "-1",
+          },
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Instance",
+          },
+        ],
+        "VpcId": {
+          "Ref": "VirtualDeviceVpc9856AA90",
+        },
+      },
+      "Type": "AWS::EC2::SecurityGroup",
+    },
+    "VirtualDeviceOpcuaDummyServerBucketAutoDeleteObjectsCustomResource03C94EAA": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "VirtualDeviceOpcuaDummyServerBucketPolicy899F9D65",
+      ],
+      "Properties": {
+        "BucketName": {
+          "Ref": "VirtualDeviceOpcuaDummyServerBucketFD7FF049",
+        },
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "Custom::S3AutoDeleteObjects",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "VirtualDeviceOpcuaDummyServerBucketFD7FF049": {
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true,
+        },
+        "Tags": [
+          {
+            "Key": "aws-cdk:auto-delete-objects",
+            "Value": "true",
+          },
+          {
+            "Key": "aws-cdk:cr-owned:602ceb59",
+            "Value": "true",
+          },
+        ],
+      },
+      "Type": "AWS::S3::Bucket",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "VirtualDeviceOpcuaDummyServerBucketPolicy899F9D65": {
+      "Properties": {
+        "Bucket": {
+          "Ref": "VirtualDeviceOpcuaDummyServerBucketFD7FF049",
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false",
+                },
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*",
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "VirtualDeviceOpcuaDummyServerBucketFD7FF049",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "VirtualDeviceOpcuaDummyServerBucketFD7FF049",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:DeleteObject*",
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::GetAtt": [
+                    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+                    "Arn",
+                  ],
+                },
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "VirtualDeviceOpcuaDummyServerBucketFD7FF049",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "VirtualDeviceOpcuaDummyServerBucketFD7FF049",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::S3::BucketPolicy",
+    },
+    "VirtualDeviceRole97E1923A": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ec2.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/AmazonSSMManagedInstanceCore",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "VirtualDeviceRoleDefaultPolicy33F8526C": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "VirtualDeviceOpcuaDummyServerBucketFD7FF049",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "VirtualDeviceOpcuaDummyServerBucketFD7FF049",
+                          "Arn",
+                        ],
+                      },
+                      "/*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "VirtualDeviceRoleDefaultPolicy33F8526C",
+        "Roles": [
+          {
+            "Ref": "VirtualDeviceRole97E1923A",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "VirtualDeviceVpc9856AA90": {
+      "Properties": {
+        "CidrBlock": "10.0.0.0/16",
+        "EnableDnsHostnames": true,
+        "EnableDnsSupport": true,
+        "InstanceTenancy": "default",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::VPC",
+    },
+    "VirtualDeviceVpcIGW566B4B82": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::InternetGateway",
+    },
+    "VirtualDeviceVpcPrivateSubnet1DefaultRoute68C79989": {
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet1NATGateway5E31AFE2",
+        },
+        "RouteTableId": {
+          "Ref": "VirtualDeviceVpcPrivateSubnet1RouteTableB381A7CC",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "VirtualDeviceVpcPrivateSubnet1RouteTableAssociation6A85D44E": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "VirtualDeviceVpcPrivateSubnet1RouteTableB381A7CC",
+        },
+        "SubnetId": {
+          "Ref": "VirtualDeviceVpcPrivateSubnet1SubnetBE97F02A",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "VirtualDeviceVpcPrivateSubnet1RouteTableB381A7CC": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PrivateSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "VirtualDeviceVpc9856AA90",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "VirtualDeviceVpcPrivateSubnet1SubnetBE97F02A": {
+      "Properties": {
+        "AvailabilityZone": "dummy1a",
+        "CidrBlock": "10.0.96.0/19",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Private",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Private",
+          },
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PrivateSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "VirtualDeviceVpc9856AA90",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "VirtualDeviceVpcPrivateSubnet2DefaultRouteC7D3375D": {
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet2NATGateway4469037D",
+        },
+        "RouteTableId": {
+          "Ref": "VirtualDeviceVpcPrivateSubnet2RouteTableE6DB31F0",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "VirtualDeviceVpcPrivateSubnet2RouteTableAssociationCC1A213A": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "VirtualDeviceVpcPrivateSubnet2RouteTableE6DB31F0",
+        },
+        "SubnetId": {
+          "Ref": "VirtualDeviceVpcPrivateSubnet2SubnetFD0291AE",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "VirtualDeviceVpcPrivateSubnet2RouteTableE6DB31F0": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PrivateSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "VirtualDeviceVpc9856AA90",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "VirtualDeviceVpcPrivateSubnet2SubnetFD0291AE": {
+      "Properties": {
+        "AvailabilityZone": "dummy1b",
+        "CidrBlock": "10.0.128.0/19",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Private",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Private",
+          },
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PrivateSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "VirtualDeviceVpc9856AA90",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "VirtualDeviceVpcPrivateSubnet3DefaultRoute87714CB4": {
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet3NATGateway5055C983",
+        },
+        "RouteTableId": {
+          "Ref": "VirtualDeviceVpcPrivateSubnet3RouteTableD38CC41B",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "VirtualDeviceVpcPrivateSubnet3RouteTableAssociation155E9D32": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "VirtualDeviceVpcPrivateSubnet3RouteTableD38CC41B",
+        },
+        "SubnetId": {
+          "Ref": "VirtualDeviceVpcPrivateSubnet3SubnetC626083C",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "VirtualDeviceVpcPrivateSubnet3RouteTableD38CC41B": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PrivateSubnet3",
+          },
+        ],
+        "VpcId": {
+          "Ref": "VirtualDeviceVpc9856AA90",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "VirtualDeviceVpcPrivateSubnet3SubnetC626083C": {
+      "Properties": {
+        "AvailabilityZone": "dummy1c",
+        "CidrBlock": "10.0.160.0/19",
+        "MapPublicIpOnLaunch": false,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Private",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Private",
+          },
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PrivateSubnet3",
+          },
+        ],
+        "VpcId": {
+          "Ref": "VirtualDeviceVpc9856AA90",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "VirtualDeviceVpcPublicSubnet1DefaultRoute1DA3B2C5": {
+      "DependsOn": [
+        "VirtualDeviceVpcVPCGWAEACD40B",
+      ],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "VirtualDeviceVpcIGW566B4B82",
+        },
+        "RouteTableId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet1RouteTable2F01E7A8",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "VirtualDeviceVpcPublicSubnet1EIP6ED3C3E9": {
+      "Properties": {
+        "Domain": "vpc",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PublicSubnet1",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::EIP",
+    },
+    "VirtualDeviceVpcPublicSubnet1NATGateway5E31AFE2": {
+      "DependsOn": [
+        "VirtualDeviceVpcPublicSubnet1DefaultRoute1DA3B2C5",
+        "VirtualDeviceVpcPublicSubnet1RouteTableAssociationB48D664B",
+      ],
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "VirtualDeviceVpcPublicSubnet1EIP6ED3C3E9",
+            "AllocationId",
+          ],
+        },
+        "SubnetId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet1Subnet35721A9E",
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PublicSubnet1",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::NatGateway",
+    },
+    "VirtualDeviceVpcPublicSubnet1RouteTable2F01E7A8": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PublicSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "VirtualDeviceVpc9856AA90",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "VirtualDeviceVpcPublicSubnet1RouteTableAssociationB48D664B": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet1RouteTable2F01E7A8",
+        },
+        "SubnetId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet1Subnet35721A9E",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "VirtualDeviceVpcPublicSubnet1Subnet35721A9E": {
+      "Properties": {
+        "AvailabilityZone": "dummy1a",
+        "CidrBlock": "10.0.0.0/19",
+        "MapPublicIpOnLaunch": true,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Public",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public",
+          },
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PublicSubnet1",
+          },
+        ],
+        "VpcId": {
+          "Ref": "VirtualDeviceVpc9856AA90",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "VirtualDeviceVpcPublicSubnet2DefaultRoute937A675B": {
+      "DependsOn": [
+        "VirtualDeviceVpcVPCGWAEACD40B",
+      ],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "VirtualDeviceVpcIGW566B4B82",
+        },
+        "RouteTableId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet2RouteTable49878CA9",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "VirtualDeviceVpcPublicSubnet2EIPD6C829C2": {
+      "Properties": {
+        "Domain": "vpc",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PublicSubnet2",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::EIP",
+    },
+    "VirtualDeviceVpcPublicSubnet2NATGateway4469037D": {
+      "DependsOn": [
+        "VirtualDeviceVpcPublicSubnet2DefaultRoute937A675B",
+        "VirtualDeviceVpcPublicSubnet2RouteTableAssociation828DF7D4",
+      ],
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "VirtualDeviceVpcPublicSubnet2EIPD6C829C2",
+            "AllocationId",
+          ],
+        },
+        "SubnetId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet2SubnetDB9A5BF8",
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PublicSubnet2",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::NatGateway",
+    },
+    "VirtualDeviceVpcPublicSubnet2RouteTable49878CA9": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PublicSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "VirtualDeviceVpc9856AA90",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "VirtualDeviceVpcPublicSubnet2RouteTableAssociation828DF7D4": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet2RouteTable49878CA9",
+        },
+        "SubnetId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet2SubnetDB9A5BF8",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "VirtualDeviceVpcPublicSubnet2SubnetDB9A5BF8": {
+      "Properties": {
+        "AvailabilityZone": "dummy1b",
+        "CidrBlock": "10.0.32.0/19",
+        "MapPublicIpOnLaunch": true,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Public",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public",
+          },
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PublicSubnet2",
+          },
+        ],
+        "VpcId": {
+          "Ref": "VirtualDeviceVpc9856AA90",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "VirtualDeviceVpcPublicSubnet3DefaultRouteAD3AB286": {
+      "DependsOn": [
+        "VirtualDeviceVpcVPCGWAEACD40B",
+      ],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "VirtualDeviceVpcIGW566B4B82",
+        },
+        "RouteTableId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet3RouteTable7A85BE8E",
+        },
+      },
+      "Type": "AWS::EC2::Route",
+    },
+    "VirtualDeviceVpcPublicSubnet3EIPB87C7FF9": {
+      "Properties": {
+        "Domain": "vpc",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PublicSubnet3",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::EIP",
+    },
+    "VirtualDeviceVpcPublicSubnet3NATGateway5055C983": {
+      "DependsOn": [
+        "VirtualDeviceVpcPublicSubnet3DefaultRouteAD3AB286",
+        "VirtualDeviceVpcPublicSubnet3RouteTableAssociation1BE667CE",
+      ],
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "VirtualDeviceVpcPublicSubnet3EIPB87C7FF9",
+            "AllocationId",
+          ],
+        },
+        "SubnetId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet3Subnet29CED2DE",
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PublicSubnet3",
+          },
+        ],
+      },
+      "Type": "AWS::EC2::NatGateway",
+    },
+    "VirtualDeviceVpcPublicSubnet3RouteTable7A85BE8E": {
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PublicSubnet3",
+          },
+        ],
+        "VpcId": {
+          "Ref": "VirtualDeviceVpc9856AA90",
+        },
+      },
+      "Type": "AWS::EC2::RouteTable",
+    },
+    "VirtualDeviceVpcPublicSubnet3RouteTableAssociation1BE667CE": {
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet3RouteTable7A85BE8E",
+        },
+        "SubnetId": {
+          "Ref": "VirtualDeviceVpcPublicSubnet3Subnet29CED2DE",
+        },
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    },
+    "VirtualDeviceVpcPublicSubnet3Subnet29CED2DE": {
+      "Properties": {
+        "AvailabilityZone": "dummy1c",
+        "CidrBlock": "10.0.64.0/19",
+        "MapPublicIpOnLaunch": true,
+        "Tags": [
+          {
+            "Key": "aws-cdk:subnet-name",
+            "Value": "Public",
+          },
+          {
+            "Key": "aws-cdk:subnet-type",
+            "Value": "Public",
+          },
+          {
+            "Key": "Name",
+            "Value": "MyTestStack/VirtualDevice/Vpc/PublicSubnet3",
+          },
+        ],
+        "VpcId": {
+          "Ref": "VirtualDeviceVpc9856AA90",
+        },
+      },
+      "Type": "AWS::EC2::Subnet",
+    },
+    "VirtualDeviceVpcVPCGWAEACD40B": {
+      "Properties": {
+        "InternetGatewayId": {
+          "Ref": "VirtualDeviceVpcIGW566B4B82",
+        },
+        "VpcId": {
+          "Ref": "VirtualDeviceVpc9856AA90",
+        },
+      },
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;
