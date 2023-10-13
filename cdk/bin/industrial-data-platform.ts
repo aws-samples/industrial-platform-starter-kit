@@ -24,8 +24,16 @@ const platformStack = new IndustialDataPlatformStack(
     // If you want to provision a virtual device, set this flag to true.
     // NOTE: this flag is only for testing purpose.
     provisionVirtualDevice: true,
+    // If you want to see the behavior of embulk on greengrass, set this flag to true.
+    provisionDummyDatabase: true,
   }
 );
+
+const SOURCE_HOST = app.node.tryGetContext("rdbHost");
+const SOURCE_PORT = app.node.tryGetContext("rdbPort");
+const SOURCE_USER = app.node.tryGetContext("rdbUser");
+const SOURCE_PASSWORD = app.node.tryGetContext("rdbPassword");
+const SOURCE_DATABASE = app.node.tryGetContext("rdbDatabase");
 
 // Deploy Greengrass components.
 // NOTE: This stack must be deployed after device setup completed.
@@ -39,13 +47,27 @@ const deployStack = new GreengrassComponentDeployStack(
     },
     thingName: thingName,
     deploymentName: "Deployment for IndustrialDataPlatformGateway",
-    opcComponentName: platformStack.opcArchiver.componentName,
-    opcComponentVersion: platformStack.opcArchiver.componentVersion,
-    opcDestinationBucketName: platformStack.storage.opcRawBucket.bucketName,
-    fileComponentName: platformStack.fileWatcher.componentName,
-    fileComponentVersion: platformStack.fileWatcher.componentVersion,
-    fileSourceDirectoryName: sourceDir,
-    fileDestinationBucketName: platformStack.storage.fileRawBucket.bucketName,
+    opcConfig: {
+      opcComponentName: platformStack.opcArchiver.componentName,
+      opcComponentVersion: platformStack.opcArchiver.componentVersion,
+      opcDestinationBucketName: platformStack.storage.opcRawBucket.bucketName,
+    },
+    fileConfig: {
+      fileComponentName: platformStack.fileWatcher.componentName,
+      fileComponentVersion: platformStack.fileWatcher.componentVersion,
+      fileSourceDirectoryName: sourceDir,
+      fileDestinationBucketName: platformStack.storage.fileRawBucket.bucketName,
+    },
+    rdbConfig: {
+      rdbComponentName: platformStack.rdbArchiver.componentName,
+      rdbComponentVersion: platformStack.rdbArchiver.componentVersion,
+      sourceHost: SOURCE_HOST,
+      sourcePort: SOURCE_PORT,
+      sourceUser: SOURCE_USER,
+      sourcePassword: SOURCE_PASSWORD,
+      sourceDatabase: SOURCE_DATABASE,
+      destinationBucketName: platformStack.storage.rdbArchiveBucket.bucketName,
+    },
   }
 );
 

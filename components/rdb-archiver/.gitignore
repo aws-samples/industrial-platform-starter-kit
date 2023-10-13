@@ -1,0 +1,8 @@
+stream_manager/
+cbor2/
+awscrt/
+awsiot/
+cerberus/
+*.DS_Store
+greengrass-build/
+zip-build/

@@ -1,0 +1,18 @@
+in:
+  type: postgresql
+  host: {{ env.SOURCE_HOST }}
+  port: {{ env.SOURCE_PORT }}
+  user: {{ env.SOURCE_USER }}
+  password: {{ env.SOURCE_PASSWORD }}
+  database: {{ env.SOURCE_DATABASE }}
+  table: GradeMaster
+  select: "*"
+out:
+  type: s3
+  bucket: {{ env.S3_BUCKET }}
+  path_prefix: {{ env.SOURCE_DATABASE }}
+  file_ext: .csv
+  mode: replace
+  auth_method: instance
+  formatter:
+    type: csv

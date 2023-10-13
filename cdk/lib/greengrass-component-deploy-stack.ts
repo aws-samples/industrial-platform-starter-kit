@@ -6,16 +6,35 @@ import {
   GreengrassComponentDeploy,
 } from "./constructs/greengrass-component-deploy";
 
-interface GreengrassComponentDeployStackProps extends StackProps {
-  thingName: string;
-  deploymentName: string;
+interface OpcConfigProps {
   opcComponentName: string;
   opcComponentVersion: string;
   opcDestinationBucketName: string;
+}
+
+interface FileConfigProps {
   fileComponentName: string;
   fileComponentVersion: string;
   fileSourceDirectoryName: string;
   fileDestinationBucketName: string;
+}
+
+interface RdbConfigProps {
+  rdbComponentName: string;
+  rdbComponentVersion: string;
+  sourceHost: string;
+  sourcePort: number;
+  sourceUser: string;
+  sourcePassword: string;
+  sourceDatabase: string;
+  destinationBucketName: string;
+}
+interface GreengrassComponentDeployStackProps extends StackProps {
+  thingName: string;
+  deploymentName: string;
+  opcConfig: OpcConfigProps;
+  fileConfig: FileConfigProps;
+  rdbConfig: RdbConfigProps;
 }
 
 export class GreengrassComponentDeployStack extends Stack {
@@ -42,19 +61,34 @@ export class GreengrassComponentDeployStack extends Stack {
         componentVersion: "2.4.0",
         merge: {},
       },
+      // // OPC UA Archiver
+      // {
+      //   componentName: props.opcConfig.opcComponentName,
+      //   componentVersion: props.opcConfig.opcComponentVersion,
+      //   merge: {
+      //     Bucket: props.opcConfig.opcDestinationBucketName,
+      //   },
+      // },
+      // // File Watcher
+      // {
+      //   componentName: props.fileConfig.fileComponentName,
+      //   componentVersion: props.fileConfig.fileComponentVersion,
+      //   merge: {
+      //     Bucket: props.fileConfig.fileDestinationBucketName,
+      //     TargetDir: props.fileConfig.fileSourceDirectoryName,
+      //   },
+      // },
+      // RDB Archiver
       {
-        componentName: props.opcComponentName,
-        componentVersion: props.opcComponentVersion,
+        componentName: props.rdbConfig.rdbComponentName,
+        componentVersion: props.rdbConfig.rdbComponentVersion,
         merge: {
-          Bucket: props.opcDestinationBucketName,
-        },
-      },
-      {
-        componentName: props.fileComponentName,
-        componentVersion: props.fileComponentVersion,
-        merge: {
-          Bucket: props.fileDestinationBucketName,
-          TargetDir: props.fileSourceDirectoryName,
+          DstBucketName: props.rdbConfig.destinationBucketName,
+          SrcHost: props.rdbConfig.sourceHost,
+          SrcPort: props.rdbConfig.sourcePort,
+          SrcUser: props.rdbConfig.sourceUser,
+          SrcPassword: props.rdbConfig.sourcePassword,
+          SrcDatabase: props.rdbConfig.sourceDatabase,
         },
       },
     ];

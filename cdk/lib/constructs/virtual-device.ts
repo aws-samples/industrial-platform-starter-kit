@@ -5,14 +5,19 @@ import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import { RemovalPolicy } from "aws-cdk-lib";
 import * as path from "path";
+import { Network } from "./network";
 
 export interface VirtualDeviceProps {
   installPolicy: iam.Policy;
+  network: Network;
 }
 
 export class VirtualDevice extends Construct {
+  readonly instance: ec2.IInstance;
   constructor(scope: Construct, id: string, props: VirtualDeviceProps) {
     super(scope, id);
+
+    const vpc = props.network.vpc;
 
     // Create s3 bucket to upload python script for dummy server
     const bucket = new s3.Bucket(this, "OpcuaDummyServerBucket", {
@@ -38,7 +43,6 @@ export class VirtualDevice extends Construct {
     );
     bucket.grantRead(role);
 
-    const vpc = new ec2.Vpc(this, "Vpc");
     const userData = ec2.UserData.forLinux();
     // Userdata log can be refered at: /var/log/cloud-init-output.log
     userData.addCommands(
@@ -46,7 +50,9 @@ export class VirtualDevice extends Construct {
       // Setup Greengrass
       // ----------------------
       "cd /home/ssm-user",
-      "sudo yum install -y java-11-amazon-corretto-headless nodejs tree python3-pip",
+      // Install dependencies including Java
+      // NOTE: embulk requires Java 8 (Oct 2023)
+      "sudo yum install -y java-1.8.0-amazon-corretto nodejs tree python3-pip",
       // Setup Greengrass user
       "sudo adduser --system ggc_user",
       "sudo groupadd --system ggc_group",
@@ -103,5 +109,7 @@ export class VirtualDevice extends Construct {
       userData: userData,
       role: role,
     });
+
+    this.instance = instance;
   }
 }
