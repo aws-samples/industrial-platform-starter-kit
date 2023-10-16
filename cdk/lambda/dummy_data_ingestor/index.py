@@ -1,10 +1,10 @@
 import datetime
 import json
 import os
-import uuid
 
 import psycopg2
 from psycopg2 import sql
+from ulid import ULID
 
 
 def handler(event, context):
@@ -64,7 +64,7 @@ def handler(event, context):
 
     # Insert dummy data into Batch Production Record
     for i in range(1, 11):
-        batch_id = str(uuid.uuid4())  # Generate a random UUID as BatchID
+        batch_id = str(ULID())
         cursor.execute(
             sql.SQL(
                 """

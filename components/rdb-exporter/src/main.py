@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 import signal
 
 from gg_config import GGConfig
@@ -30,13 +31,26 @@ async def embulk_task(config: GGConfig):
     conf_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "conf")
     liquid_files = [f for f in os.listdir(conf_dir) if f.endswith(".liquid")]
     for f in liquid_files:
-        # TODO: incremental etl
+        match = re.search(r"(.+)\.yml\.liquid", f)
+        if match:
+            base_name = match.group(1)
+        else:
+            raise ValueError("invalid file name")
+
+        # Create cursor directory to store cursor files
+        # See: https://github.com/embulk/embulk-input-jdbc/blob/master/embulk-input-jdbc/README.md#incremental-loading
+        cursor_dir_path = os.path.join(conf_dir, ".cursor")
+        if not os.path.exists(cursor_dir_path):
+            os.makedirs(cursor_dir_path)
+
         process = await asyncio.create_subprocess_exec(
             "java",
             "-jar",
             EMBULK_EXEC_PATH,
             "run",
             os.path.join(conf_dir, f),
+            "-c",
+            os.path.join(cursor_dir_path, f"{base_name}.yml"),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

@@ -11,7 +11,7 @@ in:
 out:
   type: s3
   bucket: {{ env.S3_BUCKET }}
-  path_prefix: {{ env.SOURCE_DATABASE }}
+  path_prefix: {{ env.SOURCE_DATABASE }}/BatchProductionRecord/
   file_ext: .csv
   auth_method: instance
   formatter:
