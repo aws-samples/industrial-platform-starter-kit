@@ -5,7 +5,7 @@ import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import { RemovalPolicy } from "aws-cdk-lib";
 import * as path from "path";
-import { Network } from "./network";
+import { Network } from "../network";
 
 export interface VirtualDeviceProps {
   installPolicy: iam.Policy;
@@ -29,7 +29,7 @@ export class VirtualDevice extends Construct {
 
     new s3deploy.BucketDeployment(this, "DeployScript", {
       sources: [
-        s3deploy.Source.asset(path.join(__dirname, "../../../opc_dummy")),
+        s3deploy.Source.asset(path.join(__dirname, "../../../../opc_dummy")),
       ],
       destinationBucket: bucket,
     });

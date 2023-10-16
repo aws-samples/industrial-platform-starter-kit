@@ -17,27 +17,27 @@ import {
 import { Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { GdkPublish } from "./constructs/gdk-publish/gdk-publish";
 import { SitewiseGateway } from "./constructs/sitewise-gateway";
-import { VirtualDevice } from "./constructs/virtual-device";
+import { VirtualDevice } from "./constructs/demo/virtual-device";
 import { Schedule } from "aws-cdk-lib/aws-events";
 import { Network } from "./constructs/network";
-import { Postgres } from "./constructs/postgres";
+import { Postgres } from "./constructs/demo/postgres";
 import {
   JavaGdkPublish,
   JavaVersion,
 } from "./constructs/gdk-publish/java-gdk-publish";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 
-interface IndustialDataPlatformStackProps extends cdk.StackProps {
+interface IndustrialDataPlatformStackProps extends cdk.StackProps {
   thingName: string;
   opcuaEndpointUri: string;
   provisionVirtualDevice?: boolean;
   provisionDummyDatabase?: boolean;
 }
 
-export class IndustialDataPlatformStack extends cdk.Stack {
+export class IndustrialDataPlatformStack extends cdk.Stack {
   public readonly opcArchiver: GdkPublish;
   public readonly fileWatcher: GdkPublish;
-  public readonly rdbArchiver: GdkPublish;
+  public readonly rdbExporter: GdkPublish;
   public readonly installPolicy: Policy;
   public readonly storage: Storage;
   public readonly datacatalog: Datacatalog;
@@ -45,7 +45,7 @@ export class IndustialDataPlatformStack extends cdk.Stack {
   constructor(
     scope: Construct,
     id: string,
-    props: IndustialDataPlatformStackProps
+    props: IndustrialDataPlatformStackProps
   ) {
     super(scope, id, props);
 
@@ -83,10 +83,10 @@ export class IndustialDataPlatformStack extends cdk.Stack {
         pythonVersion: PythonVersion.PYTHON_3_9,
       });
 
-      // Register RdbArchiver component
-      const rdbArchiver = new JavaGdkPublish(this, "RdbArchiver", {
+      // Register RdbExporter component
+      const rdbExporter = new JavaGdkPublish(this, "RdbExporter", {
         componentBucket: componentBucket,
-        asset: { path: path.join(__dirname, "../../components/rdb-archiver") },
+        asset: { path: path.join(__dirname, "../../components/rdb-exporter") },
         javaVersion: JavaVersion.CORRETTO8,
       });
 
@@ -113,7 +113,7 @@ export class IndustialDataPlatformStack extends cdk.Stack {
 
       this.opcArchiver = opcArchiver;
       this.fileWatcher = fileWatcher;
-      this.rdbArchiver = rdbArchiver;
+      this.rdbExporter = rdbExporter;
       this.installPolicy = bootstrap.installPolicy;
 
       // Provision virtual resources

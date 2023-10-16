@@ -1,6 +1,6 @@
 {
   "component": {
-    "com.example.rdb-archiver": {
+    "com.example.rdb-exporter": {
       "author": "Amazon",
       "version": "NEXT_PATCH",
       "build": {

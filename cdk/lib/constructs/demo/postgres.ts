@@ -3,7 +3,7 @@ import * as rds from "aws-cdk-lib/aws-rds";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 import { CfnOutput, RemovalPolicy, Token } from "aws-cdk-lib";
-import { Network } from "./network";
+import { Network } from "../network";
 
 export interface PostgresProps {
   network: Network;

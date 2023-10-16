@@ -47,18 +47,18 @@ cdk bootstrap
 以下のコマンドを実行してください。なおコマンドは`cdk`ディレクトリ下で実行する必要があります。
 
 ```bash
-cdk deploy IndustialDataPlatformStack --require-approval never
+cdk deploy IndustrialDataPlatformStack --require-approval never
 ```
 
 デプロイは環境にもよりますが、5 分程度で完了します。以下のような出力であれば成功です。
 
 ```
- ✅  IndustialDataPlatformStack
+ ✅  IndustrialDataPlatformStack
 
 ✨  Deployment time: 232.14s
 
 Outputs:
-IndustialDataPlatformStack.ExportsOutputFnGetAttFileWatcherEAAA0D27componentVersion1D4BE84C = 1.0.0
+IndustrialDataPlatformStack.ExportsOutputFnGetAttFileWatcherEAAA0D27componentVersion1D4BE84C = 1.0.0
 ...
 ```
 

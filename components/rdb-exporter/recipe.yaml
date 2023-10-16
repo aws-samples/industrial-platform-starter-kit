@@ -23,13 +23,13 @@ Manifests:
       Install:
         Timeout: 300
         Setenv:
-          DECOMPRESSED_PATH: "{artifacts:decompressedPath}/rdb-archiver"
+          DECOMPRESSED_PATH: "{artifacts:decompressedPath}/rdb-exporter"
           EMBULK_VERSION: "{configuration:/EmbulkVersion}"
-        Script: chmod +x {artifacts:decompressedPath}/rdb-archiver/install.sh && sh {artifacts:decompressedPath}/rdb-archiver/install.sh
+        Script: chmod +x {artifacts:decompressedPath}/rdb-exporter/install.sh && sh {artifacts:decompressedPath}/rdb-exporter/install.sh
       Run:
         Setenv:
           # Set Environment variable for embulk
-          DECOMPRESSED_PATH: "{artifacts:decompressedPath}/rdb-archiver"
+          DECOMPRESSED_PATH: "{artifacts:decompressedPath}/rdb-exporter"
           EMBULK_VERSION: "{configuration:/EmbulkVersion}"
           SOURCE_HOST: "{configuration:/SrcHost}"
           SOURCE_PORT: "{configuration:/SrcPort}"
@@ -37,9 +37,9 @@ Manifests:
           SOURCE_PASSWORD: "{configuration:/SrcPassword}"
           SOURCE_DATABASE: "{configuration:/SrcDatabase}"
           S3_BUCKET: "{configuration:/DstBucketName}"
-        Script: "python3 -u {artifacts:decompressedPath}/rdb-archiver/src/main.py"
+        Script: "python3 -u {artifacts:decompressedPath}/rdb-exporter/src/main.py"
     Artifacts:
-      - URI: s3://BUCKET_NAME/COMPONENT_NAME/COMPONENT_VERSION/rdb-archiver.zip
+      - URI: s3://BUCKET_NAME/COMPONENT_NAME/COMPONENT_VERSION/rdb-exporter.zip
         Unarchive: "ZIP"
   - Platform:
       # WIP: windows
@@ -51,7 +51,7 @@ Manifests:
           curl --create-dirs -o ${artifacts:decompressedPath}/embulk -L "https://dl.embulk.org/embulk-0.9.25.jar" \
           && chmod +x ${artifacts:decompressedPath}/embulk
       Run:
-        Script: "sh {artifacts:decompressedPath}/rdb-archiver/src/run.bat"
+        Script: "sh {artifacts:decompressedPath}/rdb-exporter/src/run.bat"
     Artifacts:
-      - URI: s3://BUCKET_NAME/COMPONENT_NAME/COMPONENT_VERSION/rdb-archiver.zip
+      - URI: s3://BUCKET_NAME/COMPONENT_NAME/COMPONENT_VERSION/rdb-exporter.zip
         Unarchive: "ZIP"

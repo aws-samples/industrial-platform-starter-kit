@@ -4,8 +4,8 @@ import * as quicksight from "aws-cdk-lib/aws-quicksight";
 import {
   QuicksightDatasetOpc,
   TagType,
-} from "./constructs/quicksight-dataset-opc";
-import { QuicksightDatasetFile } from "./constructs/quicksight-dataset-file";
+} from "./constructs/demo/quicksight-dataset-opc";
+import { QuicksightDatasetFile } from "./constructs/demo/quicksight-dataset-file";
 
 interface QuicksightStackProps extends cdk.StackProps {
   quicksightUserName: string;

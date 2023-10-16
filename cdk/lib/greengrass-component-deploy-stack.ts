@@ -49,7 +49,7 @@ export class GreengrassComponentDeployStack extends Stack {
       {
         componentName: "aws.greengrass.Cli",
         componentVersion: "2.11.1",
-        // merge: {},
+        merge: {},
       },
       {
         componentName: "aws.greengrass.Nucleus",
@@ -61,23 +61,23 @@ export class GreengrassComponentDeployStack extends Stack {
         componentVersion: "2.4.0",
         merge: {},
       },
-      // // OPC UA Archiver
-      // {
-      //   componentName: props.opcConfig.opcComponentName,
-      //   componentVersion: props.opcConfig.opcComponentVersion,
-      //   merge: {
-      //     Bucket: props.opcConfig.opcDestinationBucketName,
-      //   },
-      // },
-      // // File Watcher
-      // {
-      //   componentName: props.fileConfig.fileComponentName,
-      //   componentVersion: props.fileConfig.fileComponentVersion,
-      //   merge: {
-      //     Bucket: props.fileConfig.fileDestinationBucketName,
-      //     TargetDir: props.fileConfig.fileSourceDirectoryName,
-      //   },
-      // },
+      // OPC UA Archiver
+      {
+        componentName: props.opcConfig.opcComponentName,
+        componentVersion: props.opcConfig.opcComponentVersion,
+        merge: {
+          Bucket: props.opcConfig.opcDestinationBucketName,
+        },
+      },
+      // File Watcher
+      {
+        componentName: props.fileConfig.fileComponentName,
+        componentVersion: props.fileConfig.fileComponentVersion,
+        merge: {
+          Bucket: props.fileConfig.fileDestinationBucketName,
+          TargetDir: props.fileConfig.fileSourceDirectoryName,
+        },
+      },
       // RDB Archiver
       {
         componentName: props.rdbConfig.rdbComponentName,

@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import uuid
 
 import psycopg2
 from psycopg2 import sql
@@ -63,6 +64,7 @@ def handler(event, context):
 
     # Insert dummy data into Batch Production Record
     for i in range(1, 11):
+        batch_id = str(uuid.uuid4())  # Generate a random UUID as BatchID
         cursor.execute(
             sql.SQL(
                 """
@@ -71,7 +73,7 @@ def handler(event, context):
             ON CONFLICT (BatchID) DO NOTHING;
         """
             ),
-            (f"Batch{i}", f"Grade{i%3+1}", i * 10, datetime.datetime.now()),
+            (batch_id, f"Grade{i%3+1}", i * 10, datetime.datetime.now()),
         )
 
     # Verify the inserted records

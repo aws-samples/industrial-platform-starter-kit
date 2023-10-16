@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import "source-map-support/register";
 import * as cdk from "aws-cdk-lib";
-import { IndustialDataPlatformStack } from "../lib/industrial-data-platform-stack";
+import { IndustrialDataPlatformStack } from "../lib/industrial-data-platform-stack";
 import { GreengrassComponentDeployStack } from "../lib/greengrass-component-deploy-stack";
 import { QuicksightStack } from "../lib/quicksight-stack";
 
@@ -11,9 +11,9 @@ const opcuaEndpointUri = app.node.tryGetContext("opcuaEndpointUri");
 const sourceDir = app.node.tryGetContext("sourceDir");
 const quicksightUserName = app.node.tryGetContext("quicksightUserName");
 
-const platformStack = new IndustialDataPlatformStack(
+const platformStack = new IndustrialDataPlatformStack(
   app,
-  "IndustialDataPlatformStack",
+  "IndustrialDataPlatformStack",
   {
     env: {
       account: process.env.CDK_DEFAULT_ACCOUNT,
@@ -59,8 +59,8 @@ const deployStack = new GreengrassComponentDeployStack(
       fileDestinationBucketName: platformStack.storage.fileRawBucket.bucketName,
     },
     rdbConfig: {
-      rdbComponentName: platformStack.rdbArchiver.componentName,
-      rdbComponentVersion: platformStack.rdbArchiver.componentVersion,
+      rdbComponentName: platformStack.rdbExporter.componentName,
+      rdbComponentVersion: platformStack.rdbExporter.componentVersion,
       sourceHost: SOURCE_HOST,
       sourcePort: SOURCE_PORT,
       sourceUser: SOURCE_USER,
@@ -74,7 +74,7 @@ const deployStack = new GreengrassComponentDeployStack(
 deployStack.addDependency(platformStack);
 
 // NOTE: This stack is only for testing purpose.
-// The argument `provisionVirtualDevice` for `IndustialDataPlatformStack` as true is required.
+// The argument `provisionVirtualDevice` for `IndustrialDataPlatformStack` as true is required.
 const quicksightStack = new QuicksightStack(app, "QuicksightStack", {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
