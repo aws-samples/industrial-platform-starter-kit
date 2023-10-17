@@ -8,7 +8,7 @@
 
 コマンド例 (Linux):
 
-```
+```sh
 sudo -E java "-Droot=/greengrass/v2" "-Dlog.store=FILE" -jar /GreengrassInstaller/lib/Greengrass.jar --aws-region ap-northeast-1 --thing-name IndustrialDataPlatformGateway --thing-policy-name IndustrialDataPlatformGatewayThingPolicy --tes-role-name IndustrialDataPlatformStac-GreengrassBootstrapGreen-XXXXX --tes-role-alias-name IndustrialDataPlatformStac-GreengrassBootstrapGreen-XXXXXAlias --component-default-user ggc_user:ggc_group --provision true --setup-system-service true --deploy-dev-tools false
 ```
 
@@ -37,7 +37,7 @@ Successfully set up Nucleus as a system service
 
 デバイスが AWS へ登録されていることの確認のため、下記のコマンドを実行します。**このコマンドは Greengrass をインストールしたデバイスではなく、CDK をデプロイした端末のターミナルで実行してください。**
 
-```bash
+```sh
 aws iot describe-thing --thing-name IndustrialDataPlatformGateway
 ```
 
@@ -88,6 +88,25 @@ opcua-commander -e opc.tcp://127.0.0.1:52250
 ![](../imgs/opcua_commander.png)
 
 OPC-UA サーバが正しく動作・接続されていれば、値を確認できるはずです。
+
+## ダミーレコードの挿入
+
+ダミーの Postgres データベースへレコードを挿入します。マネージメントコンソールの Lambda > `IndustrialDcataPlatformSta-DummyDataIngestorXXX`をクリックし、テストタブ > 「テスト」ボタンをクリックします。下記のようなレスポンスが得られれば成功です。
+
+![](../imgs/dummy-data-ingestor.png)
+
+## データベース情報の設定
+
+[cdk.json](../../cdk/cdk.json)を開き、データベースの情報を設定します。具体的には`rdbHost`および`rdbPassword`を編集します。`rdbHost`はマネコン > CFn > 出力タブ > `DummyDatabaseHostnameXXXX`の値から確認できます。また`rdbPassword`はマネコン > Secrets Manager > `DummyDatabaseSecretXXXX` > 「シークレットの値を取得する」から確認できます。その他の値は下記を参考にしてください。
+
+```json
+    "rdbHost": "industrialdataplatformsta-dummydatabaseclusterxxxx.ap-northeast-1.rds.amazonaws.com",
+    "rdbPort": "5432",
+    "rdbUser": "root",
+    "rdbPassword": "YYYY",
+    "rdbDatabase": "prototype",
+    "rdbExportIntervalSec": 60
+```
 
 ## Greengrass コンポーネントをデバイスへデプロイ
 
@@ -236,3 +255,5 @@ Raw バケットに格納されると、即座に加工用の Lambda により�
 以上の手順により、エッジ側デバイスのデータをクラウドに転送・加工することができます。この後は S3 のデータにアクセスし自由に分析や可視化が実行可能です。Athena による SQL クエリ例については[Athena によるクエリ例](./athena_example.md)を参照ください。
 
 以降、本ドキュメントでは QuickSight を利用し可視化を実施する手順について解説します。なお QuickSight は本プロジェクトの動作確認のために用意した仮想デバイス・ダミーの OPC-UA サーバを利用することを想定している点にご留意ください。では[QuickSight の設定のデプロイ](./deploy_quicksight_ja.md)へお進みください。
+
+また実環境への適用をトライされたい場合は[こちら](./actual_env.md)へお進みください。

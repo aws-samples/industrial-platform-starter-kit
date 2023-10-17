@@ -13,6 +13,7 @@ out:
   bucket: {{ env.S3_BUCKET }}
   path_prefix: {{ env.SOURCE_DATABASE }}/{{ table_name }}/
   file_ext: .csv
+  sequence_format: data.%03d.%02d
   auth_method: instance
   formatter:
     type: csv

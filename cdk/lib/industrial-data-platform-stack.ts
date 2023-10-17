@@ -135,11 +135,6 @@ export class IndustrialDataPlatformStack extends cdk.Stack {
       }
 
       if (props.provisionDummyDatabase) {
-        if (!props.provisionVirtualDevice) {
-          throw new Error(
-            "Virtual Device must be provisioned to provision Dummy Database"
-          );
-        }
         const database = new Postgres(this, "DummyDatabase", {
           network: network!,
         });
@@ -163,11 +158,15 @@ export class IndustrialDataPlatformStack extends cdk.Stack {
             DB_PORT: database.port.toString(),
           },
         });
-        virtualDevice?.instance.connections!.securityGroups.forEach(
-          (securityGroup) => {
-            database.allowInboundAccess(securityGroup);
-          }
-        );
+
+        if (props.provisionVirtualDevice) {
+          virtualDevice?.instance.connections!.securityGroups.forEach(
+            (securityGroup) => {
+              database.allowInboundAccess(securityGroup);
+            }
+          );
+        }
+
         ingestor.connections.securityGroups.forEach((securityGroup) => {
           database.allowInboundAccess(securityGroup);
         });
