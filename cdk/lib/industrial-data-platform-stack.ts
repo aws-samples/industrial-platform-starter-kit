@@ -38,7 +38,6 @@ export class IndustrialDataPlatformStack extends cdk.Stack {
   public readonly opcArchiver: GdkPublish;
   public readonly fileWatcher: GdkPublish;
   public readonly rdbExporter: GdkPublish;
-  public readonly installPolicy: Policy;
   public readonly storage: Storage;
   public readonly datacatalog: Datacatalog;
 
@@ -115,7 +114,6 @@ export class IndustrialDataPlatformStack extends cdk.Stack {
       this.opcArchiver = opcArchiver;
       this.fileWatcher = fileWatcher;
       this.rdbExporter = rdbExporter;
-      this.installPolicy = bootstrap.installPolicy;
 
       // Provision virtual resources
       let network;

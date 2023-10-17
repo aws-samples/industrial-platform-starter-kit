@@ -23,7 +23,7 @@ const platformStack = new IndustrialDataPlatformStack(
     opcuaEndpointUri: opcuaEndpointUri,
     // If you want to provision a virtual device, set this flag to true.
     // NOTE: this flag is only for testing purpose.
-    provisionVirtualDevice: true,
+    provisionVirtualDevice: false,
     // If you want to see the behavior of embulk on greengrass, set this flag to true.
     provisionDummyDatabase: true,
   }
