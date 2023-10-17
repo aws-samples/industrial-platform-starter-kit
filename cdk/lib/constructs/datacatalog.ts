@@ -197,6 +197,68 @@ export class Datacatalog extends Construct {
         `s3://${props.storage.fileProcessedBucket.bucketName}/` + "${date}/",
     });
 
+    // Define glue table to store rdb data.
+    // NOTE: This is example implementation for dummy database table.
+    // Please edit to match your database table schema.
+    const gradeMasterTable = new glue.Table(this, "GradeMasterTable", {
+      database: IndustrialPlatformDatabase,
+      tableName: "grade_master",
+      columns: [
+        { name: "grade_id", type: glue.Schema.STRING },
+        { name: "grade_name", type: glue.Schema.STRING },
+      ],
+      dataFormat: glue.DataFormat.CSV,
+      compressed: false,
+      bucket: props.storage.rdbArchiveBucket,
+      s3Prefix: "prototype/GradeMaster/",
+    });
+    const cfnGradeMasterTable = gradeMasterTable.node
+      .defaultChild as aws_glue.CfnTable;
+    cfnGradeMasterTable.addPropertyOverride("TableInput.Parameters", {
+      "skip.header.line.count": "1", // ignore header column
+      "projection.enabled": true,
+      "storage.location.template": `s3://${props.storage.rdbArchiveBucket.bucketName}/prototype/GradeMaster/`,
+    });
+
+    const batchProductionRecordTable = new glue.Table(
+      this,
+      "BatchProductionRecordTable",
+      {
+        database: IndustrialPlatformDatabase,
+        tableName: "batch_production_record",
+        columns: [
+          { name: "batch_id", type: glue.Schema.STRING },
+          { name: "grade_id", type: glue.Schema.STRING },
+          { name: "production_number", type: glue.Schema.INTEGER },
+          { name: "production_timestamp", type: glue.Schema.STRING },
+        ],
+        partitionKeys: [
+          {
+            name: "date",
+            type: glue.Schema.STRING,
+          },
+        ],
+        dataFormat: glue.DataFormat.CSV,
+        compressed: false,
+        bucket: props.storage.rdbArchiveBucket,
+        s3Prefix: "prototype/BatchProductionRecord/",
+      }
+    );
+    const cfnBatchProductionRecordTable = batchProductionRecordTable.node
+      .defaultChild as aws_glue.CfnTable;
+    cfnBatchProductionRecordTable.addPropertyOverride("TableInput.Parameters", {
+      "skip.header.line.count": "1", // ignore header column
+      "projection.enabled": true,
+      "projection.date.type": "date",
+      "projection.date.range": "2023/01/01,NOW",
+      "projection.date.format": "yyyy/MM/dd",
+      "projection.date.interval": 1,
+      "projection.date.interval.unit": "DAYS",
+      "storage.location.template":
+        `s3://${props.storage.rdbArchiveBucket.bucketName}/prototype/BatchProductionRecord/` +
+        "${date}/",
+    });
+
     this.database = IndustrialPlatformDatabase;
     this.opcRawTable = opcRawTable;
     this.opcProcessedTable = opcProcessedTable;

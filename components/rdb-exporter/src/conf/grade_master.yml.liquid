@@ -1,3 +1,4 @@
+{% assign  table_name = "GradeMaster" %}
 in:
   type: postgresql
   host: {{ env.SOURCE_HOST }}
@@ -5,12 +6,12 @@ in:
   user: {{ env.SOURCE_USER }}
   password: {{ env.SOURCE_PASSWORD }}
   database: {{ env.SOURCE_DATABASE }}
-  table: GradeMaster
+  table: {{ table_name }}
   select: "*"
 out:
   type: s3
   bucket: {{ env.S3_BUCKET }}
-  path_prefix: {{ env.SOURCE_DATABASE }}/GradeMaster/
+  path_prefix: {{ env.SOURCE_DATABASE }}/{{ table_name }}/
   file_ext: .csv
   auth_method: instance
   formatter:

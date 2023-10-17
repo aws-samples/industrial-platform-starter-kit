@@ -28,11 +28,13 @@ def handler(event, context):
     cursor.execute(sql.SQL("ALTER role root WITH password %s;"), [password])
 
     # Create Grade Master table
+    # cursor.execute("DROP TABLE IF EXISTS BatchProductionRecord;")
+    # cursor.execute("DROP TABLE IF EXISTS GradeMaster;")
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS GradeMaster (
-            GradeID VARCHAR PRIMARY KEY,
-            GradeName VARCHAR NOT NULL
+            grade_id VARCHAR PRIMARY KEY,
+            grade_name VARCHAR NOT NULL
         );
     """
     )
@@ -41,10 +43,10 @@ def handler(event, context):
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS BatchProductionRecord (
-            BatchID VARCHAR PRIMARY KEY,
-            GradeID VARCHAR REFERENCES GradeMaster(GradeID),
-            ProductionNumber INT NOT NULL,
-            ProductionTimestamp TIMESTAMP NOT NULL
+            batch_id VARCHAR PRIMARY KEY,
+            grade_id VARCHAR REFERENCES GradeMaster(grade_id),
+            production_number INT NOT NULL,
+            production_timestamp TIMESTAMP NOT NULL
         );
     """
     )
@@ -54,12 +56,12 @@ def handler(event, context):
         cursor.execute(
             sql.SQL(
                 """
-            INSERT INTO GradeMaster (GradeID, GradeName)
+            INSERT INTO GradeMaster (grade_id, grade_name)
             VALUES (%s, %s)
-            ON CONFLICT (GradeID) DO NOTHING;
+            ON CONFLICT (grade_id) DO NOTHING;
         """
             ),
-            (f"Grade{i}", f"GradeName{i}"),
+            (f"grade_{i}", f"grade_{['A', 'B', 'C'][i-1]}"),
         )
 
     # Insert dummy data into Batch Production Record
@@ -68,12 +70,12 @@ def handler(event, context):
         cursor.execute(
             sql.SQL(
                 """
-            INSERT INTO BatchProductionRecord (BatchID, GradeID, ProductionNumber, ProductionTimestamp)
+            INSERT INTO BatchProductionRecord (batch_id, grade_id, production_number, production_timestamp)
             VALUES (%s, %s, %s, %s)
-            ON CONFLICT (BatchID) DO NOTHING;
+            ON CONFLICT (batch_id) DO NOTHING;
         """
             ),
-            (batch_id, f"Grade{i%3+1}", i * 10, datetime.datetime.now()),
+            (batch_id, f"grade_{i%3+1}", i * 10, datetime.datetime.now()),
         )
 
     # Verify the inserted records
@@ -92,7 +94,7 @@ def handler(event, context):
         "body": json.dumps(
             {
                 "message": "Table creation and dummy data insertion completed.",
-                "BrandMaster": grade_records,
+                "GradeMaster": grade_records,
                 "BatchProductionRecord": batch_records,
             },
             default=lambda x: x.isoformat() if isinstance(x, datetime.datetime) else x,

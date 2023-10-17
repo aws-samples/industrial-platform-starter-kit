@@ -27,6 +27,7 @@ interface RdbConfigProps {
   sourceUser: string;
   sourcePassword: string;
   sourceDatabase: string;
+  exportInterval: number;
   destinationBucketName: string;
 }
 interface GreengrassComponentDeployStackProps extends StackProps {
@@ -89,6 +90,7 @@ export class GreengrassComponentDeployStack extends Stack {
           SrcUser: props.rdbConfig.sourceUser,
           SrcPassword: props.rdbConfig.sourcePassword,
           SrcDatabase: props.rdbConfig.sourceDatabase,
+          RunIntervalSec: props.rdbConfig.exportInterval,
         },
       },
     ];

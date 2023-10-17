@@ -1,110 +1,10 @@
 # エッジゲートウェイデバイスへ Greengrass をインストール
 
-## 想定環境
-
-まずデバイスの想定環境を確認します。仮想デバイスをご利用の場合、本手順をスキップし次節の「Greengrass のインストール」へお進みください。
-
-まず[Greengrass 動作環境](https://docs.aws.amazon.com/greengrass/v2/developerguide/setting-up.html#installation-requirements) を参照し、サポートされているプラットフォームとデバイスの要件を確認してください。
-
-続いて Python / Java をインストールします。Python はバージョン 3.9 以降、Java はバージョン 11 のインストールをお勧めします。なお Java は JDK インストールは不要です。また仮想デバイスでは[Amazon Corretto 11](https://aws.amazon.com/corretto/)をインストールしています。
-
-### 補足: Java のバージョン
-
-Greengrass が必要とする Java のバージョンは 8 以降となっています。Java SE では v20 と最新版がリリースされていたり、Corretto でも v8,v11,v17,v20 がダウンロードできる状態です。Greengrass が動作するバージョンとしては v8 以降であればどのバージョンでも問題ありませんが、今回適用する SiteWise コンポーネントが、v17 以降で正常に動作しないことが確認されているため、v11 をインストールすることをお勧めします。
-
-### 補足: Windows 環境の Python のインストール
-
-Python セットアップ時に PATH 環境変数への追加と、すべてのユーザで Python を実行可能なようにインストールする必要があります。
-セットアップ中の Add python.exe to PATH のチェックボックスへのチェック及び、カスタマイズインストールの Advanced Options で Install Python 3.xx for all users を選択してインストールを行なってください。
-
-![](../imgs/python_install_1.jpeg)
-![](../imgs/python_install_2.jpeg)
-
-## Greengrass ユーザのセットアップ
-
-Greengrass 用のユーザーを作成します。仮想デバイスをご利用の場合、本手順をスキップし次節の「Greengrass のインストール」へお進みください。
-
-### Linux の場合
-
-エッジデバイスが Linux の場合、下記のコマンドを実行します。
-
-```
-sudo adduser --system ggc_user
-sudo groupadd --system ggc_group
-```
-
-### Windows の場合
-
-管理者として Windows コマンドプロンプト cmd.exe を開き下記コマンドを実行しユーザを作成します。`<password>`は安全なパスワードに置き換えてください。また、Greengrass が使用するユーザ名は通常 ggc_user となります。特別な理由がない限りはこのユーザ名を使用するようにしてください。
-
-```
-net user /add ggc_user <password>
-```
-
-Windows の構成によっては、ユーザパスワードの期限切れが設定されている場合があります。Greengrass アプリケーションを継続的に動作させるためには、作成したユーザのパスワードを期限切れまでに更新するか、期限切れを起こさないように設定します。
-下記コマンドでパスワード期限について確認できます。
-
-```
-net user ggc_user | findstr /C:expires
-```
-
-ユーザのパスワード期限が切れないように設定するには下記のコマンドを実行します。
-
-```
-wmic UserAccount where "Name='ggc_user'" set PasswordExpires=False
-```
-
-また、作成したデフォルトユーザのアカウント情報を LocalSystem アカウントの認証情報マネージャインスタンスに格納する必要があります。PsExec ユーティリティを使用する必要があるため、ダウンロードの上、下記のコマンドを実行します。パスワードは ggc_user 作成時に設定したパスワードに置き換えてください。
-
-```
-psexec -s cmd /c cmdkey /generic:ggc_user /user:ggc_user /pass:<password>
-```
-
 ## Greengrass のインストール
 
-次にゲートウェイデバイス（以降、デバイスと呼称）へ Greengrass をインストールします。
+ゲートウェイデバイス（以降、デバイスと呼称）へ Greengrass をインストールします。
 
-### 準備
-
-仮想デバイスを利用の場合はスキップし、次節の「インストール」から実施してください。
-
-Greengrass インストーラーは必要な AWS リソースを自動的にプロビジョニングするため、インストーラー実行に際して AWS 認証情報が必要です。Greengrass インストール用の IAM ユーザを準備して、 Greengrass インストールを行う Windows 環境に環境変数としてアクセスキー情報を設定します。
-このインストールを行う際に使用する AWS 認証情報に割り当てるべきな最低限の IAM ポリシーについては[こちら](https://docs.aws.amazon.com/greengrass/v2/developerguide/provision-minimal-iam-policy.html)を確認し作成いただくか、前章でデプロイした IndustrialPlatformStack で作成される IAM ポリシーをご利用ください (ポリシー名は CloudFormation > IndustrialPlatformStack の出力タブ > GreengrassInstallPolicyName を参照してください)。
-
-ユーザを作成し、ユーザの `AWS_ACCESS_KEY_ID` と `AWS_SECRET_ACCESS_KEY` が取得できたら、ターミナル (Linux)またはコマンドプロンプト (Windows) を管理者権限で立ち上げ下記を入力します。
-
-Linux の場合:
-
-```
-export AWS_ACCESS_KEY_ID=<AWS_ACCESS_KEY_ID>
-export AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY>
-```
-
-Windows の場合:
-
-```
-set AWS_ACCESS_KEY_ID=<AWS_ACCESS_KEY_ID>
-set AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY>
-```
-
-上記の手順で AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY を環境変数にセットしたターミナル (Linux)またはコマンドプロンプト (Windows)で下記作業を続行します。以下のコマンドをで入力して Greengrass パッケージをダウンロードし展開します。なお本手順は[こちら](https://docs.aws.amazon.com/greengrass/v2/developerguide/manual-installation.html#download-greengrass-core-v2)に記載されています。
-
-Linux の場合:
-
-```
-curl -s https://d2s8p88vqu9w66.cloudfront.net/releases/greengrass-nucleus-latest.zip > greengrass-nucleus-latest.zip
-unzip greengrass-nucleus-latest.zip -d GreengrassInstaller && rm greengrass-nucleus-latest.zip
-```
-
-Windows の場合:
-
-```
-powershell.exe -command "& {Invoke-WebRequest -Uri https://d2s8p88vqu9w66.cloudfront.net/releases/greengrass-nucleus-latest.zip -OutFile .\greengrass-nucleus-latest.zip; Expand-Archive -LiteralPath .\greengrass-nucleus-latest.zip -DestinationPath .\GreengrassInstaller}"
-```
-
-### インストール
-
-仮想デバイス利用の場合は本手順より実施してください。まずは CloudFormation のページに AWS マネージメントコンソールからアクセスし、`IndustrialDataPlatformStack`をクリックしてください。その後`出力`タブをクリックし、インストールコマンドを控えます。デバイスの OS が Linux の場合は`GreengrassBootstrapGreengrassInstallCommandForLinux`、Windows の場合は`GreengrassBootstrapGreengrassInstallCommandForWindows`をそれぞれ参照してください。
+まずは CloudFormation のページに AWS マネージメントコンソールからアクセスし、`IndustrialDataPlatformStack`をクリックしてください。その後`出力`タブをクリックし、インストールコマンドを控えます。デバイスの OS が Linux の場合は`GreengrassBootstrapGreengrassInstallCommandForLinux`、Windows の場合は`GreengrassBootstrapGreengrassInstallCommandForWindows`をそれぞれ参照してください。
 
 コマンド例 (Linux):
 
@@ -112,7 +12,7 @@ powershell.exe -command "& {Invoke-WebRequest -Uri https://d2s8p88vqu9w66.cloudf
 sudo -E java "-Droot=/greengrass/v2" "-Dlog.store=FILE" -jar /GreengrassInstaller/lib/Greengrass.jar --aws-region ap-northeast-1 --thing-name IndustrialDataPlatformGateway --thing-policy-name IndustrialDataPlatformGatewayThingPolicy --tes-role-name IndustrialDataPlatformStac-GreengrassBootstrapGreen-XXXXX --tes-role-alias-name IndustrialDataPlatformStac-GreengrassBootstrapGreen-XXXXXAlias --component-default-user ggc_user:ggc_group --provision true --setup-system-service true --deploy-dev-tools false
 ```
 
-控えたコマンドをターミナルまたはコマンドプロンプトで実行してください。なお仮想デバイスを利用している場合はマネージメントコンソールの EC2 インスタンス > IndustrialDataPlatformStack/VirtualDevice/Instance > 接続 > セッションマネージャーをご利用いただくことでターミナルへアクセスできます。下記のような出力が得られれば成功です。
+控えたコマンドを仮想デバイス上のターミナルで実行します。マネージメントコンソールの EC2 インスタンス > IndustrialDataPlatformStack/VirtualDevice/Instance > 接続 > セッションマネージャーをご利用いただくことでターミナルへアクセスできます。下記のような出力が得られれば成功です。
 
 ```
 C:\Users\Administrator>java "-Droot=C:\greengrass\v2" "-Dlog.store=FILE" -jar .\GreengrassInstaller/lib/Greengrass.jar --aws-region ap-northeast-1 --thing-name Prototype-OPC-Gateway --thing-policy-name OPC-GatewayThingPolicy --tes-role-name OPC-GatewayTokenExchangeRole --tes-role-alias-name OPC-GatewayTokenExchangeRoleAlias --component-default-user ggc_user --provision true --setup-system-service true --deploy-dev-tools true

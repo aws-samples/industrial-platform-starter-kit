@@ -42,16 +42,26 @@ Manifests:
       - URI: s3://BUCKET_NAME/COMPONENT_NAME/COMPONENT_VERSION/rdb-exporter.zip
         Unarchive: "ZIP"
   - Platform:
-      # WIP: windows
       os: windows
     Lifecycle:
       Install:
         Timeout: 300
-        Script: |
-          curl --create-dirs -o ${artifacts:decompressedPath}/embulk -L "https://dl.embulk.org/embulk-0.9.25.jar" \
-          && chmod +x ${artifacts:decompressedPath}/embulk
+        Setenv:
+          DECOMPRESSED_PATH: "{artifacts:decompressedPath}/rdb-exporter"
+          EMBULK_VERSION: "{configuration:/EmbulkVersion}"
+        Script: powershell -ExecutionPolicy Bypass -File {artifacts:decompressedPath}/rdb-exporter/install.ps1
       Run:
-        Script: "sh {artifacts:decompressedPath}/rdb-exporter/src/run.bat"
+        Setenv:
+          # Set Environment variable for embulk
+          DECOMPRESSED_PATH: "{artifacts:decompressedPath}/rdb-exporter"
+          EMBULK_VERSION: "{configuration:/EmbulkVersion}"
+          SOURCE_HOST: "{configuration:/SrcHost}"
+          SOURCE_PORT: "{configuration:/SrcPort}"
+          SOURCE_USER: "{configuration:/SrcUser}"
+          SOURCE_PASSWORD: "{configuration:/SrcPassword}"
+          SOURCE_DATABASE: "{configuration:/SrcDatabase}"
+          S3_BUCKET: "{configuration:/DstBucketName}"
+        Script: "python3 -u {artifacts:decompressedPath}/rdb-exporter/src/main.py"
     Artifacts:
       - URI: s3://BUCKET_NAME/COMPONENT_NAME/COMPONENT_VERSION/rdb-exporter.zip
         Unarchive: "ZIP"

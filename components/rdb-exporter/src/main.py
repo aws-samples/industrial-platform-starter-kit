@@ -56,9 +56,9 @@ async def embulk_task(config: GGConfig):
         )
         stdout, stderr = await process.communicate()
         if stdout:
-            print(stdout.decode().strip())
+            logger.info(stdout.decode().strip())
         if stderr:
-            print(stderr.decode().strip())
+            logger.error(stderr.decode().strip())
 
     return process.returncode
 
@@ -84,14 +84,6 @@ async def main():
         logger.setLevel(logging._nameToLevel[config.log_level.upper()])
 
         config.print_config()
-
-        # TODO: remove
-        logger.info(os.environ.get("SOURCE_HOST"))
-        logger.info(os.environ.get("SOURCE_PORT"))
-        logger.info(os.environ.get("SOURCE_USER"))
-        logger.info(os.environ.get("SOURCE_PASSWORD"))
-        logger.info(os.environ.get("SOURCE_DATABASE"))
-        logger.info(os.environ.get("S3_BUCKET"))
 
         await run_task(config)
     except Exception as e:

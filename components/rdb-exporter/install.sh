@@ -19,7 +19,7 @@ curl -o ${JRUBY_EXEC_PATH} -L https://repo1.maven.org/maven2/org/jruby/jruby-com
 echo "jruby=file:///${JRUBY_EXEC_PATH}" >> ${HOME}/.embulk/embulk.properties
 
 echo "Installing embulk plugins..."
-java -jar ${EMBULK_EXEC_PATH} gem install embulk -v 0.11.0
+java -jar ${EMBULK_EXEC_PATH} gem install embulk -v ${EMBULK_VERSION}
 java -jar ${EMBULK_EXEC_PATH} gem install msgpack -v 1.4.1
 java -jar ${EMBULK_EXEC_PATH} gem install embulk-input-postgresql
 java -jar ${EMBULK_EXEC_PATH} gem install embulk-output-s3

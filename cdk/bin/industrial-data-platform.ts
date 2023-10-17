@@ -34,6 +34,7 @@ const SOURCE_PORT = app.node.tryGetContext("rdbPort");
 const SOURCE_USER = app.node.tryGetContext("rdbUser");
 const SOURCE_PASSWORD = app.node.tryGetContext("rdbPassword");
 const SOURCE_DATABASE = app.node.tryGetContext("rdbDatabase");
+const RDB_EXPORT_INTERVAL_SEC = app.node.tryGetContext("rdbExportIntervalSec");
 
 // Deploy Greengrass components.
 // NOTE: This stack must be deployed after device setup completed.
@@ -67,6 +68,7 @@ const deployStack = new GreengrassComponentDeployStack(
       sourcePassword: SOURCE_PASSWORD,
       sourceDatabase: SOURCE_DATABASE,
       destinationBucketName: platformStack.storage.rdbArchiveBucket.bucketName,
+      exportInterval: RDB_EXPORT_INTERVAL_SEC,
     },
   }
 );

@@ -1,3 +1,4 @@
+{% assign  table_name = "BatchProductionRecord" %}
 in:
   type: postgresql
   host: {{ env.SOURCE_HOST }}
@@ -5,13 +6,13 @@ in:
   user: {{ env.SOURCE_USER }}
   password: {{ env.SOURCE_PASSWORD }}
   database: {{ env.SOURCE_DATABASE }}
-  table: BatchProductionRecord
+  table: {{ table_name }}
   select: "*"
   incremental: true
 out:
   type: s3
   bucket: {{ env.S3_BUCKET }}
-  path_prefix: {{ env.SOURCE_DATABASE }}/BatchProductionRecord/
+  path_prefix: {{ env.SOURCE_DATABASE }}/{{ table_name }}/{{ "now" | date: "%Y/%m/%d" }}/
   file_ext: .csv
   auth_method: instance
   formatter:
