@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import signal
+import sys
 
 from gg_config import GGConfig
 
@@ -76,10 +77,11 @@ async def run_task(config: GGConfig):
 
 async def main():
     try:
-        for s in [signal.SIGTERM, signal.SIGINT]:
-            asyncio.get_running_loop().add_signal_handler(
-                s, lambda s=s: asyncio.create_task(shutdown(s))
-            )
+        if sys.platform != "win32":
+            for s in [signal.SIGTERM, signal.SIGINT]:
+                asyncio.get_running_loop().add_signal_handler(
+                    s, lambda s=s: asyncio.create_task(shutdown(s))
+                )
         config = GGConfig()
         logger.setLevel(logging._nameToLevel[config.log_level.upper()])
 

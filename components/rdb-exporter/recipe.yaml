@@ -21,7 +21,7 @@ Manifests:
       os: linux
     Lifecycle:
       Install:
-        Timeout: 300
+        Timeout: 600
         Setenv:
           DECOMPRESSED_PATH: "{artifacts:decompressedPath}/rdb-exporter"
           EMBULK_VERSION: "{configuration:/EmbulkVersion}"
@@ -45,7 +45,7 @@ Manifests:
       os: windows
     Lifecycle:
       Install:
-        Timeout: 300
+        Timeout: 600
         Setenv:
           DECOMPRESSED_PATH: "{artifacts:decompressedPath}/rdb-exporter"
           EMBULK_VERSION: "{configuration:/EmbulkVersion}"
@@ -61,7 +61,7 @@ Manifests:
           SOURCE_PASSWORD: "{configuration:/SrcPassword}"
           SOURCE_DATABASE: "{configuration:/SrcDatabase}"
           S3_BUCKET: "{configuration:/DstBucketName}"
-        Script: "python3 -u {artifacts:decompressedPath}/rdb-exporter/src/main.py"
+        Script: "python -u {artifacts:decompressedPath}/rdb-exporter/src/main.py"
     Artifacts:
       - URI: s3://BUCKET_NAME/COMPONENT_NAME/COMPONENT_VERSION/rdb-exporter.zip
         Unarchive: "ZIP"

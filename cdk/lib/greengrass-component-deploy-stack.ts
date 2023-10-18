@@ -63,13 +63,13 @@ export class GreengrassComponentDeployStack extends Stack {
         merge: {},
       },
       // OPC UA Archiver
-      {
-        componentName: props.opcConfig.opcComponentName,
-        componentVersion: props.opcConfig.opcComponentVersion,
-        merge: {
-          Bucket: props.opcConfig.opcDestinationBucketName,
-        },
-      },
+      // {
+      //   componentName: props.opcConfig.opcComponentName,
+      //   componentVersion: props.opcConfig.opcComponentVersion,
+      //   merge: {
+      //     Bucket: props.opcConfig.opcDestinationBucketName,
+      //   },
+      // },
       // File Watcher
       {
         componentName: props.fileConfig.fileComponentName,

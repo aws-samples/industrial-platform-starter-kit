@@ -194,8 +194,30 @@ psexec -s cmd /c cmdkey /generic:ggc_user /user:ggc_user /pass:<password>
 
 ## Greengrass のインストール
 
+Greengrass パッケージをダウンロードし展開します。
+
+### Linux の場合
+
+### Windows の場合
+
+ユーザの AWS_ACCESS_KEY_ID と AWS_SECRET_ACCESS_KEY が取得できたら、コマンドプロンプトを管理者権限で立ち上げ下記を入力します。
+
+```
+set AWS_ACCESS_KEY_ID=<AWS_ACCESS_KEY_ID>
+set AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY>
+```
+
+上記の手順で AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY を環境変数にセットしたコマンドプロンプトで下記作業を続行します。
+以下のコマンドをで入力して Greengrass パッケージをダウンロードし展開します。
+
+```
+powershell.exe -command "& {Invoke-WebRequest -Uri https://d2s8p88vqu9w66.cloudfront.net/releases/greengrass-nucleus-latest.zip -OutFile .\greengrass-nucleus-latest.zip; Expand-Archive -LiteralPath .\greengrass-nucleus-latest.zip -DestinationPath .\GreengrassInstaller}"
+```
+
 [エッジゲートウェイデバイスへ Greengrass をインストール](./deploy_edge_ja.md)を参考にイン
 ストールします。CloudFormation の出力タブに表示されるコマンドをエッジデバイス上のターミナルまたはコマンドプロンプトで実行してください（デバイスの OS が Linux の場合は`GreengrassBootstrapGreengrassInstallCommandForLinux`、Windows の場合は`GreengrassBootstrapGreengrassInstallCommandForWindows`をそれぞれ参照してください）。
+
+以上の手順についての詳細は[公式サイト](https://docs.aws.amazon.com/greengrass/v2/developerguide/manual-installation.html#download-greengrass-core-v2)をご確認ください。
 
 ## Greengrass コンポーネントをデバイスへデプロイ
 

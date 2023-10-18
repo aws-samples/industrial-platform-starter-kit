@@ -8,7 +8,7 @@ import * as path from "path";
 import { Network } from "../network";
 
 export interface VirtualDeviceProps {
-  installPolicy: iam.Policy;
+  installPolicy: iam.ManagedPolicy;
   network: Network;
 }
 
@@ -37,7 +37,7 @@ export class VirtualDevice extends Construct {
     const role = new iam.Role(this, "Role", {
       assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
     });
-    role.attachInlinePolicy(props.installPolicy);
+    role.addManagedPolicy(props.installPolicy);
     role.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore")
     );
