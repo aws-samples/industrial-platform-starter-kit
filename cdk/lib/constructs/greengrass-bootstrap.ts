@@ -174,7 +174,7 @@ export class GreengrassBootstrap extends Construct {
     new CfnOutput(this, `GreengrassInstallCommandForWindows`, {
       value: this.createInstallCommand(
         GREENGRASS_WINDOWS_INSTALL_PATH,
-        GREENGRASS_JAR_PATH.replace(/\//g, "\\\\"),
+        GREENGRASS_JAR_PATH.replace(/\//g, "\\"),
         GreengrassInstallPlatform.Windows,
         deployDevTools
       ),
