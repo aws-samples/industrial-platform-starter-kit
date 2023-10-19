@@ -15,6 +15,6 @@ out:
   path_prefix: {{ env.SOURCE_DATABASE }}/{{ table_name }}/{{ "now" | date: "%Y/%m/%d" }}/
   file_ext: .csv
   sequence_format: data.%03d.%02d
-  auth_method: instance
+  auth_method: env
   formatter:
     type: csv

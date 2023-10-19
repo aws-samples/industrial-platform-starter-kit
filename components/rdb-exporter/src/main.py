@@ -5,6 +5,7 @@ import re
 import signal
 import sys
 
+import boto3
 from gg_config import GGConfig
 
 logger = logging.getLogger("opc-archiver-component-logger")
@@ -76,6 +77,15 @@ async def run_task(config: GGConfig):
 
 
 async def main():
+    session = boto3.Session()
+    credentials = session.get_credentials()
+    credentials = credentials.get_frozen_credentials()
+
+    # Set credentials to environment variables for embulk
+    os.environ["AWS_ACCESS_KEY_ID"] = credentials.access_key
+    os.environ["AWS_SECRET_ACCESS_KEY"] = credentials.secret_key
+    os.environ["AWS_SESSION_TOKEN"] = credentials.token
+
     try:
         if sys.platform != "win32":
             for s in [signal.SIGTERM, signal.SIGINT]:
