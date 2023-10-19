@@ -162,16 +162,28 @@ OPC-UA サーバが稼働している場合は即座にデータの収集が開�
 
 コンポーネントのエラーログを直接確認しエラーの原因を調査します。ログは下記にファイルとして出力されます。Greengrass が出力するログの詳細については[こちら](https://docs.aws.amazon.com/greengrass/v2/developerguide/monitor-logs.html#access-local-logs)を参照ください。
 
-Windows:
+- Windows
 
-```
+```ps1
 C:\greengrass\v2\logs\
 ```
 
-Linux:
+ログのリアルタイムモニタリングの例 (PowerShell):
+
+```ps1
+Get-Content -Path C:\greengrass\v2\logs\com.example.rdb-exporter.log -Wait -Tail 10
+```
+
+- Linux
 
 ```
 /greengrass/v2/logs/
+```
+
+ログのリアルタイムモニタリングの例:
+
+```sh
+sudo tail -f /greengrass/v2/logs/
 ```
 
 ### IoT SiteWise ステータスの確認

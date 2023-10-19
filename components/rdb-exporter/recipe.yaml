@@ -4,6 +4,7 @@ ComponentName: "{COMPONENT_NAME}"
 ComponentVersion: "{COMPONENT_VERSION}"
 ComponentPublisher: "{COMPONENT_AUTHOR}"
 ComponentDependencies:
+  # Add token exchange service to get credentials for Embulk
   aws.greengrass.TokenExchangeService:
     VersionRequirement: ">=2.0.0 <3.0.0"
     DependencyType: "HARD"
