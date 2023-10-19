@@ -128,8 +128,6 @@ export class IndustrialDataPlatformStack extends cdk.Stack {
           installPolicy: bootstrap.installPolicy,
           network: network!,
         });
-        // // allow access to s3
-        // storage.rdbArchiveBucket.grantReadWrite(virtualDevice.instance);
       }
 
       if (props.provisionDummyDatabase) {

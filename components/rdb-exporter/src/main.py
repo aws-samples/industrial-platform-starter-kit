@@ -79,7 +79,6 @@ async def run_task(config: GGConfig):
 async def main():
     session = boto3.Session()
     credentials = session.get_credentials()
-    credentials = credentials.get_frozen_credentials()
 
     # Set credentials to environment variables for embulk
     os.environ["AWS_ACCESS_KEY_ID"] = credentials.access_key

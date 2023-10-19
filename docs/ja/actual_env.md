@@ -41,7 +41,7 @@ ETL の定義を[components/rdb-exporter/src/conf/](../../components/rdb-exporte
 
 ### Embulk プラグインのインストール
 
-本サンプルでは Postgres を対象としています。他の DB を利用される場合は Embulk プラグインのインストールが必要です。エッジ OS が Linux の場合[install.sh](../../components/rdb-exporter/install.sh), Windows の場合[install.p1](../../components/rdb-exporter/install.p1) をそれぞれ編集してください。たとえば Linux の場合は下記の箇所を編集します。
+本サンプルでは Postgres を対象としています。他の DB を利用される場合は Embulk プラグインのインストールが必要です。エッジ OS が Linux の場合[install.sh](../../components/rdb-exporter/install.sh), Windows の場合[install.ps1](../../components/rdb-exporter/install.ps1) をそれぞれ編集してください。たとえば Linux の場合は下記の箇所を編集します。
 
 ```sh
 ...略...
