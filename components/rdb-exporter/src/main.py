@@ -5,7 +5,7 @@ import re
 import signal
 import sys
 
-import boto3
+import requests
 from gg_config import GGConfig
 
 logger = logging.getLogger("opc-archiver-component-logger")
@@ -24,15 +24,18 @@ EMBULK_VERSION = os.environ.get("EMBULK_VERSION")
 EMBULK_EXEC_PATH = os.path.join(DECOMPRESSED_PATH, f"embulk-{EMBULK_VERSION}.jar")
 
 
-def set_secret_env():
-    session = boto3.Session()
-    credentials = session.get_credentials()
-    credentials = credentials.get_frozen_credentials()
+def get_aws_credentials():
+    credentials_uri = os.getenv("AWS_CONTAINER_CREDENTIALS_FULL_URI")
+    authorization_token = os.getenv("AWS_CONTAINER_AUTHORIZATION_TOKEN")
 
-    # Set credentials to environment variables for embulk
-    os.environ["AWS_ACCESS_KEY_ID"] = credentials.access_key
-    os.environ["AWS_SECRET_ACCESS_KEY"] = credentials.secret_key
-    os.environ["AWS_SESSION_TOKEN"] = credentials.token
+    headers = {"Authorization": f"{authorization_token}"}
+    response = requests.get(credentials_uri, headers=headers)
+
+    if response.status_code == 200:
+        credentials = response.json()
+        return credentials
+    else:
+        logging.error(f"Failed to get credentials: {response.text}")
 
 
 async def shutdown(signal):
@@ -56,7 +59,12 @@ async def embulk_task(config: GGConfig):
         if not os.path.exists(cursor_dir_path):
             os.makedirs(cursor_dir_path)
 
-        set_secret_env()
+        credentials = get_aws_credentials()
+        print(f"credentials: {credentials}")
+        os.environ["AWS_ACCESS_KEY_ID"] = credentials["AccessKeyId"]
+        os.environ["AWS_SECRET_ACCESS_KEY"] = credentials["SecretAccessKey"]
+        os.environ["AWS_SESSION_TOKEN"] = credentials["Token"]
+
         process = await asyncio.create_subprocess_exec(
             "java",
             "-jar",

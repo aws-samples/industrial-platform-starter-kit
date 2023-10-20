@@ -57,6 +57,6 @@
     "rdbUser": "root",
     "rdbPassword": "xxxx",
     "rdbDatabase": "prototype",
-    "rdbExportIntervalSec": 60
+    "rdbExportIntervalSec": 300
   }
 }
