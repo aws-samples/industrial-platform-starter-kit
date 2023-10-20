@@ -12,7 +12,7 @@ enum GreengrassInstallPlatform {
 export const GREENGRASS_WINDOWS_INSTALL_PATH: string = "C:\\greengrass\\v2";
 export const GREENGRASS_LINUX_INSTALL_PATH: string = "/greengrass/v2";
 export const GREENGRASS_JAR_PATH: string =
-  "/GreengrassInstaller/lib/Greengrass.jar";
+  "GreengrassInstaller/lib/Greengrass.jar";
 
 export interface GreengrassBootstrapProps {
   /**
@@ -42,7 +42,7 @@ export class GreengrassBootstrap extends Construct {
   public readonly thingName: string;
   public readonly tesRole: iam.Role;
   public readonly testRolePolicy: iam.ManagedPolicy;
-  public readonly installPolicy: iam.Policy;
+  public readonly installPolicy: iam.ManagedPolicy;
 
   constructor(scope: Construct, id: string, props: GreengrassBootstrapProps) {
     super(scope, id);
@@ -157,9 +157,13 @@ export class GreengrassBootstrap extends Construct {
       ],
       resources: ["*"],
     });
-    const installPolicy = new iam.Policy(this, `GreengrassInstallPolicy`, {
-      statements: [installerIamPolicyStatement, installerIoTPolicyStatement],
-    });
+    const installPolicy = new iam.ManagedPolicy(
+      this,
+      `GreengrassInstallPolicy`,
+      {
+        statements: [installerIamPolicyStatement, installerIoTPolicyStatement],
+      }
+    );
 
     this.tesRole = tesRole;
     this.testRolePolicy = tesRolePolicy;
@@ -170,7 +174,7 @@ export class GreengrassBootstrap extends Construct {
     new CfnOutput(this, `GreengrassInstallCommandForWindows`, {
       value: this.createInstallCommand(
         GREENGRASS_WINDOWS_INSTALL_PATH,
-        GREENGRASS_JAR_PATH.replace("/", "\\"),
+        GREENGRASS_JAR_PATH.replace(/\//g, "\\"),
         GreengrassInstallPlatform.Windows,
         deployDevTools
       ),
@@ -186,7 +190,7 @@ export class GreengrassBootstrap extends Construct {
     });
 
     new CfnOutput(this, `GreengrassInstallPolicyName`, {
-      value: this.installPolicy.policyName,
+      value: this.installPolicy.managedPolicyName,
     });
   }
 

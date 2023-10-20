@@ -1,118 +1,18 @@
 # エッジゲートウェイデバイスへ Greengrass をインストール
 
-## 想定環境
-
-まずデバイスの想定環境を確認します。仮想デバイスをご利用の場合、本手順をスキップし次節の「Greengrass のインストール」へお進みください。
-
-まず[Greengrass 動作環境](https://docs.aws.amazon.com/greengrass/v2/developerguide/setting-up.html#installation-requirements) を参照し、サポートされているプラットフォームとデバイスの要件を確認してください。
-
-続いて Python / Java をインストールします。Python はバージョン 3.9 以降、Java はバージョン 11 のインストールをお勧めします。なお Java は JDK インストールは不要です。また仮想デバイスでは[Amazon Corretto 11](https://aws.amazon.com/corretto/)をインストールしています。
-
-### 補足: Java のバージョン
-
-Greengrass が必要とする Java のバージョンは 8 以降となっています。Java SE では v20 と最新版がリリースされていたり、Corretto でも v8,v11,v17,v20 がダウンロードできる状態です。Greengrass が動作するバージョンとしては v8 以降であればどのバージョンでも問題ありませんが、今回適用する SiteWise コンポーネントが、v17 以降で正常に動作しないことが確認されているため、v11 をインストールすることをお勧めします。
-
-### 補足: Windows 環境の Python のインストール
-
-Python セットアップ時に PATH 環境変数への追加と、すべてのユーザで Python を実行可能なようにインストールする必要があります。
-セットアップ中の Add python.exe to PATH のチェックボックスへのチェック及び、カスタマイズインストールの Advanced Options で Install Python 3.xx for all users を選択してインストールを行なってください。
-
-![](../imgs/python_install_1.jpeg)
-![](../imgs/python_install_2.jpeg)
-
-## Greengrass ユーザのセットアップ
-
-Greengrass 用のユーザーを作成します。仮想デバイスをご利用の場合、本手順をスキップし次節の「Greengrass のインストール」へお進みください。
-
-### Linux の場合
-
-エッジデバイスが Linux の場合、下記のコマンドを実行します。
-
-```
-sudo adduser --system ggc_user
-sudo groupadd --system ggc_group
-```
-
-### Windows の場合
-
-管理者として Windows コマンドプロンプト cmd.exe を開き下記コマンドを実行しユーザを作成します。`<password>`は安全なパスワードに置き換えてください。また、Greengrass が使用するユーザ名は通常 ggc_user となります。特別な理由がない限りはこのユーザ名を使用するようにしてください。
-
-```
-net user /add ggc_user <password>
-```
-
-Windows の構成によっては、ユーザパスワードの期限切れが設定されている場合があります。Greengrass アプリケーションを継続的に動作させるためには、作成したユーザのパスワードを期限切れまでに更新するか、期限切れを起こさないように設定します。
-下記コマンドでパスワード期限について確認できます。
-
-```
-net user ggc_user | findstr /C:expires
-```
-
-ユーザのパスワード期限が切れないように設定するには下記のコマンドを実行します。
-
-```
-wmic UserAccount where "Name='ggc_user'" set PasswordExpires=False
-```
-
-また、作成したデフォルトユーザのアカウント情報を LocalSystem アカウントの認証情報マネージャインスタンスに格納する必要があります。PsExec ユーティリティを使用する必要があるため、ダウンロードの上、下記のコマンドを実行します。パスワードは ggc_user 作成時に設定したパスワードに置き換えてください。
-
-```
-psexec -s cmd /c cmdkey /generic:ggc_user /user:ggc_user /pass:<password>
-```
-
 ## Greengrass のインストール
 
-次にゲートウェイデバイス（以降、デバイスと呼称）へ Greengrass をインストールします。
+ゲートウェイデバイス（以降、デバイスと呼称）へ Greengrass をインストールします。
 
-### 準備
-
-仮想デバイスを利用の場合はスキップし、次節の「インストール」から実施してください。
-
-Greengrass インストーラーは必要な AWS リソースを自動的にプロビジョニングするため、インストーラー実行に際して AWS 認証情報が必要です。Greengrass インストール用の IAM ユーザを準備して、 Greengrass インストールを行う Windows 環境に環境変数としてアクセスキー情報を設定します。
-このインストールを行う際に使用する AWS 認証情報に割り当てるべきな最低限の IAM ポリシーについては[こちら](https://docs.aws.amazon.com/greengrass/v2/developerguide/provision-minimal-iam-policy.html)を確認し作成いただくか、前章でデプロイした IndustrialPlatformStack で作成される IAM ポリシーをご利用ください (ポリシー名は CloudFormation > IndustrialPlatformStack の出力タブ > GreengrassInstallPolicyName を参照してください)。
-
-ユーザを作成し、ユーザの `AWS_ACCESS_KEY_ID` と `AWS_SECRET_ACCESS_KEY` が取得できたら、ターミナル (Linux)またはコマンドプロンプト (Windows) を管理者権限で立ち上げ下記を入力します。
-
-Linux の場合:
-
-```
-export AWS_ACCESS_KEY_ID=<AWS_ACCESS_KEY_ID>
-export AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY>
-```
-
-Windows の場合:
-
-```
-set AWS_ACCESS_KEY_ID=<AWS_ACCESS_KEY_ID>
-set AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY>
-```
-
-上記の手順で AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY を環境変数にセットしたターミナル (Linux)またはコマンドプロンプト (Windows)で下記作業を続行します。以下のコマンドをで入力して Greengrass パッケージをダウンロードし展開します。なお本手順は[こちら](https://docs.aws.amazon.com/greengrass/v2/developerguide/manual-installation.html#download-greengrass-core-v2)に記載されています。
-
-Linux の場合:
-
-```
-curl -s https://d2s8p88vqu9w66.cloudfront.net/releases/greengrass-nucleus-latest.zip > greengrass-nucleus-latest.zip
-unzip greengrass-nucleus-latest.zip -d GreengrassInstaller && rm greengrass-nucleus-latest.zip
-```
-
-Windows の場合:
-
-```
-powershell.exe -command "& {Invoke-WebRequest -Uri https://d2s8p88vqu9w66.cloudfront.net/releases/greengrass-nucleus-latest.zip -OutFile .\greengrass-nucleus-latest.zip; Expand-Archive -LiteralPath .\greengrass-nucleus-latest.zip -DestinationPath .\GreengrassInstaller}"
-```
-
-### インストール
-
-仮想デバイス利用の場合は本手順より実施してください。まずは CloudFormation のページに AWS マネージメントコンソールからアクセスし、`IndustialDataPlatformStack`をクリックしてください。その後`出力`タブをクリックし、インストールコマンドを控えます。デバイスの OS が Linux の場合は`GreengrassBootstrapGreengrassInstallCommandForLinux`、Windows の場合は`GreengrassBootstrapGreengrassInstallCommandForWindows`をそれぞれ参照してください。
+まずは CloudFormation のページに AWS マネージメントコンソールからアクセスし、`IndustrialDataPlatformStack`をクリックしてください。その後`出力`タブをクリックし、インストールコマンドを控えます。デバイスの OS が Linux の場合は`GreengrassBootstrapGreengrassInstallCommandForLinux`、Windows の場合は`GreengrassBootstrapGreengrassInstallCommandForWindows`をそれぞれ参照してください。
 
 コマンド例 (Linux):
 
-```
-sudo -E java "-Droot=/greengrass/v2" "-Dlog.store=FILE" -jar /GreengrassInstaller/lib/Greengrass.jar --aws-region ap-northeast-1 --thing-name IndustrialDataPlatformGateway --thing-policy-name IndustrialDataPlatformGatewayThingPolicy --tes-role-name IndustialDataPlatformStac-GreengrassBootstrapGreen-XXXXX --tes-role-alias-name IndustialDataPlatformStac-GreengrassBootstrapGreen-XXXXXAlias --component-default-user ggc_user:ggc_group --provision true --setup-system-service true --deploy-dev-tools false
+```sh
+sudo -E java "-Droot=/greengrass/v2" "-Dlog.store=FILE" -jar /GreengrassInstaller/lib/Greengrass.jar --aws-region ap-northeast-1 --thing-name IndustrialDataPlatformGateway --thing-policy-name IndustrialDataPlatformGatewayThingPolicy --tes-role-name IndustrialDataPlatformStac-GreengrassBootstrapGreen-XXXXX --tes-role-alias-name IndustrialDataPlatformStac-GreengrassBootstrapGreen-XXXXXAlias --component-default-user ggc_user:ggc_group --provision true --setup-system-service true --deploy-dev-tools false
 ```
 
-控えたコマンドをターミナルまたはコマンドプロンプトで実行してください。なお仮想デバイスを利用している場合はマネージメントコンソールの EC2 インスタンス > IndustialDataPlatformStack/VirtualDevice/Instance > 接続 > セッションマネージャーをご利用いただくことでターミナルへアクセスできます。下記のような出力が得られれば成功です。
+控えたコマンドを仮想デバイス上のターミナルで実行します。マネージメントコンソールの EC2 インスタンス > IndustrialDataPlatformStack/VirtualDevice/Instance > 接続 > セッションマネージャーをご利用いただくことでターミナルへアクセスできます。下記のような出力が得られれば成功です。
 
 ```
 C:\Users\Administrator>java "-Droot=C:\greengrass\v2" "-Dlog.store=FILE" -jar .\GreengrassInstaller/lib/Greengrass.jar --aws-region ap-northeast-1 --thing-name Prototype-OPC-Gateway --thing-policy-name OPC-GatewayThingPolicy --tes-role-name OPC-GatewayTokenExchangeRole --tes-role-alias-name OPC-GatewayTokenExchangeRoleAlias --component-default-user ggc_user --provision true --setup-system-service true --deploy-dev-tools true
@@ -137,7 +37,7 @@ Successfully set up Nucleus as a system service
 
 デバイスが AWS へ登録されていることの確認のため、下記のコマンドを実行します。**このコマンドは Greengrass をインストールしたデバイスではなく、CDK をデプロイした端末のターミナルで実行してください。**
 
-```bash
+```sh
 aws iot describe-thing --thing-name IndustrialDataPlatformGateway
 ```
 
@@ -189,6 +89,25 @@ opcua-commander -e opc.tcp://127.0.0.1:52250
 
 OPC-UA サーバが正しく動作・接続されていれば、値を確認できるはずです。
 
+## ダミーレコードの挿入
+
+ダミーの Postgres データベースへレコードを挿入します。マネージメントコンソールの Lambda > `IndustrialDcataPlatformSta-DummyDataIngestorXXX`をクリックし、テストタブ > 「テスト」ボタンをクリックします。下記のようなレスポンスが得られれば成功です。
+
+![](../imgs/dummy-data-ingestor.png)
+
+## データベース情報の設定
+
+[cdk.json](../../cdk/cdk.json)を開き、データベースの情報を設定します。具体的には`rdbHost`および`rdbPassword`を編集します。`rdbHost`はマネコン > CFn > 出力タブ > `DummyDatabaseHostnameXXXX`の値から確認できます。また`rdbPassword`はマネコン > Secrets Manager > `DummyDatabaseSecretXXXX` > 「シークレットの値を取得する」から確認できます。その他の値は下記を参考にしてください。
+
+```json
+    "rdbHost": "industrialdataplatformsta-dummydatabaseclusterxxxx.ap-northeast-1.rds.amazonaws.com",
+    "rdbPort": "5432",
+    "rdbUser": "root",
+    "rdbPassword": "YYYY",
+    "rdbDatabase": "prototype",
+    "rdbExportIntervalSec": 60
+```
+
 ## Greengrass コンポーネントをデバイスへデプロイ
 
 下記コマンドで Greengrass コンポーネント (file-watcher, opc-archiver, SiteWiseEdgeCollectorOpcua など) を上記でセットアップしたデバイスへデプロイします。**このコマンドは Greengrass をインストールしたデバイスではなく、IndustrialPlatformStack をデプロイした端末のターミナルで実行してください。**
@@ -201,7 +120,7 @@ cdk deploy GreengrassComponentDeployStack --require-approval never
 
 ![](../imgs/greengrass_deploy.png)
 
-OPC-UA サーバが稼働している場合は即座にデータの収集が開始されます。マネージメントコンソールの S3 > バケットにアクセス後、OPC の Raw バケット (industialdataplatformsta-storageopcrawbucketXXXX...という名前のバケット) の中身を見ると、2023/08/15/03/opc-log.2023-08-15_03-00.gz のようなファイルが生成されていることが確認できるはずです。
+OPC-UA サーバが稼働している場合は即座にデータの収集が開始されます。マネージメントコンソールの S3 > バケットにアクセス後、OPC の Raw バケット (industrialdataplatformsta-storageopcrawbucketXXXX...という名前のバケット) の中身を見ると、2023/08/15/03/opc-log.2023-08-15_03-00.gz のようなファイルが生成されていることが確認できるはずです。
 
 ![](../imgs/opc_bucket.png)
 
@@ -243,16 +162,28 @@ OPC-UA サーバが稼働している場合は即座にデータの収集が開�
 
 コンポーネントのエラーログを直接確認しエラーの原因を調査します。ログは下記にファイルとして出力されます。Greengrass が出力するログの詳細については[こちら](https://docs.aws.amazon.com/greengrass/v2/developerguide/monitor-logs.html#access-local-logs)を参照ください。
 
-Windows:
+- Windows
 
-```
+```ps1
 C:\greengrass\v2\logs\
 ```
 
-Linux:
+ログのリアルタイムモニタリングの例 (PowerShell):
+
+```ps1
+Get-Content -Path C:\greengrass\v2\logs\com.example.rdb-exporter.log -Wait -Tail 10
+```
+
+- Linux
 
 ```
 /greengrass/v2/logs/
+```
+
+ログのリアルタイムモニタリングの例:
+
+```sh
+sudo tail -f /greengrass/v2/logs/
 ```
 
 ### IoT SiteWise ステータスの確認
@@ -317,7 +248,7 @@ for i in $(seq 1 100); do
 done
 ```
 
-これまでのデプロイが成功していれば、数秒以内に ファイルの Raw バケット (industialdataplatformsta-storagefilerawbucketXXX...という名前の S3 バケット) に転送されます。転送されない場合は Greengrass のログをご確認ください。
+これまでのデプロイが成功していれば、数秒以内に ファイルの Raw バケット (industrialdataplatformsta-storagefilerawbucketXXX...という名前の S3 バケット) に転送されます。転送されない場合は Greengrass のログをご確認ください。
 
 ## 加工処理の確認
 
@@ -325,14 +256,16 @@ OPC・ファイル共に S3 バケットに転送されることを確認でき�
 
 ### OPC
 
-OPC データは 1 時間ごとにタグによるパーティショニングを実行します。しばらく待機したのち、OPC の Processed バケット (industialdataplatformsta-storageopcprocessedbucke...という名前のバケット) の中身が確認できれば加工処理は成功しています。なおエッジ側のタイムスタンプの遅延を考慮するため、処理は毎時 10 分 (00:10, 01:10, ..., 23:10) に実行される点に留意ください。毎時 10 分を過ぎても生成されない場合、Lambda のログをご確認ください。
+OPC データは 1 時間ごとにタグによるパーティショニングを実行します。しばらく待機したのち、OPC の Processed バケット (industrialdataplatformsta-storageopcprocessedbucke...という名前のバケット) の中身が確認できれば加工処理は成功しています。なおエッジ側のタイムスタンプの遅延を考慮するため、処理は毎時 10 分 (00:10, 01:10, ..., 23:10) に実行される点に留意ください。毎時 10 分を過ぎても生成されない場合、Lambda のログをご確認ください。
 
 ### ファイル
 
-Raw バケットに格納されると、即座に加工用の Lambda により、加工済みのデータが Processed バケット (industialdataplatformsta-storagefileprocessedbuck...という名前の S3 バケット) に保存されます。バケットの中身を確認してみてください。保存されない場合、Lambda のログをご確認ください。
+Raw バケットに格納されると、即座に加工用の Lambda により、加工済みのデータが Processed バケット (industrialdataplatformsta-storagefileprocessedbuck...という名前の S3 バケット) に保存されます。バケットの中身を確認してみてください。保存されない場合、Lambda のログをご確認ください。
 
 ---
 
 以上の手順により、エッジ側デバイスのデータをクラウドに転送・加工することができます。この後は S3 のデータにアクセスし自由に分析や可視化が実行可能です。Athena による SQL クエリ例については[Athena によるクエリ例](./athena_example.md)を参照ください。またリソースの破棄については[こちら](./destroy_ja.md)をご覧ください。
 
 以降、本ドキュメントでは QuickSight を利用し可視化を実施する手順について解説します。なお QuickSight は本プロジェクトの動作確認のために用意した仮想デバイス・ダミーの OPC-UA サーバを利用することを想定している点にご留意ください。では[QuickSight の設定のデプロイ](./deploy_quicksight_ja.md)へお進みください。
+
+また実環境への適用をトライされたい場合は[こちら](./actual_env.md)へお進みください。

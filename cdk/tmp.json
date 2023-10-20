@@ -1,6 +1,0 @@
-{
-    "gatewayId": "b2a2877e-57ef-4a39-ac7c-1569e6c2cf5c",
-    "capabilityNamespace": "iotsitewise:opcuacollector:2",
-    "capabilityConfiguration": "{\"sources\":[{\"name\":\"opc-ua-server-test\",\"endpoint\":{\"certificateTrust\":{\"type\":\"TrustAny\"},\"endpointUri\":\"opc.tcp://localhost:52250\",\"securityPolicy\":\"NONE\",\"messageSecurityMode\":\"NONE\",\"identityProvider\":{\"type\":\"Anonymous\"},\"nodeFilterRules\":[{\"action\":\"INCLUDE\",\"definition\":{\"type\":\"OpcUaRootPath\",\"rootPath\":\"/\"}}]},\"measurementDataStreamPrefix\":\"\",\"destination\":{\"type\":\"StreamManager\",\"streamName\":\"opc_archiver_stream\",\"streamBufferSize\":4}},{\"name\":\"opc-server-test\",\"endpoint\":{\"certificateTrust\":{\"type\":\"TrustAny\"},\"endpointUri\":\"opc.tcp://localhost:52250\",\"securityPolicy\":\"NONE\",\"messageSecurityMode\":\"NONE\",\"identityProvider\":{\"type\":\"Anonymous\"},\"nodeFilterRules\":[{\"action\":\"INCLUDE\",\"definition\":{\"type\":\"OpcUaRootPath\",\"rootPath\":\"/\"}}]},\"measurementDataStreamPrefix\":\"\",\"destination\":{\"type\":\"StreamManager\",\"streamName\":\"opcua_archiver\",\"streamBufferSize\":4}}]}",
-    "capabilitySyncStatus": "OUT_OF_SYNC"
-}

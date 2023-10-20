@@ -9,6 +9,7 @@ export class Storage extends Construct {
   public readonly opcProcessedBucket: s3.IBucket;
   public readonly fileRawBucket: s3.IBucket;
   public readonly fileProcessedBucket: s3.IBucket;
+  public readonly rdbArchiveBucket: s3.IBucket;
 
   constructor(scope: Construct, id: string, props?: StorageProps) {
     super(scope, id);
@@ -59,9 +60,16 @@ export class Storage extends Construct {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
     });
 
+    const rdbArchiveBucket = new s3.Bucket(this, "RdbArchiveBucket", {
+      autoDeleteObjects: true,
+      removalPolicy: RemovalPolicy.DESTROY,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    });
+
     this.opcRawBucket = opcRawBucket;
     this.opcProcessedBucket = opcProcessedBucket;
     this.fileRawBucket = fileRawBucket;
     this.fileProcessedBucket = fileProcessedBucket;
+    this.rdbArchiveBucket = rdbArchiveBucket;
   }
 }

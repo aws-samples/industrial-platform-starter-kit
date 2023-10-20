@@ -1,0 +1,20 @@
+{% assign  table_name = "BatchProductionRecord" %}
+in:
+  type: postgresql
+  host: {{ env.SOURCE_HOST }}
+  port: {{ env.SOURCE_PORT }}
+  user: {{ env.SOURCE_USER }}
+  password: {{ env.SOURCE_PASSWORD }}
+  database: {{ env.SOURCE_DATABASE }}
+  table: {{ table_name }}
+  select: "*"
+  incremental: true
+out:
+  type: s3
+  bucket: {{ env.S3_BUCKET }}
+  path_prefix: {{ env.SOURCE_DATABASE }}/{{ table_name }}/{{ "now" | date: "%Y/%m/%d" }}/
+  file_ext: .csv
+  sequence_format: data.%03d.%02d
+  auth_method: env
+  formatter:
+    type: csv

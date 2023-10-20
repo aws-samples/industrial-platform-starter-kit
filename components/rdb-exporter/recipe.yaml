@@ -1,0 +1,72 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: "{COMPONENT_NAME}"
+ComponentVersion: "{COMPONENT_VERSION}"
+ComponentPublisher: "{COMPONENT_AUTHOR}"
+ComponentDependencies:
+  # Add token exchange service to get credentials for Embulk
+  aws.greengrass.TokenExchangeService:
+    VersionRequirement: ">=2.0.0 <3.0.0"
+    DependencyType: "HARD"
+ComponentConfiguration:
+  DefaultConfiguration:
+    LogLevel: "info" # Log level (debug, info, warn, error)
+    RunIntervalSec: 60 # Run interval (sec)
+    # Stable embulk version: v0.11.0 (Oct 2023)
+    # See: https://www.embulk.org/
+    EmbulkVersion: "0.11.0" # embulk version
+    SrcHost: "localhost" # Source RDB host
+    SrcPort: 5432 # Source RDB port
+    SrcUser: "postgres" # Source RDB user
+    SrcPassword: "postgres" # Source RDB password
+    SrcDatabase: "postgres" # Source RDB database
+    DstBucketName: "BucketName" # Destination Bucket
+Manifests:
+  - Platform:
+      os: linux
+    Lifecycle:
+      Install:
+        Timeout: 600
+        Setenv:
+          DECOMPRESSED_PATH: "{artifacts:decompressedPath}/rdb-exporter"
+          EMBULK_VERSION: "{configuration:/EmbulkVersion}"
+        Script: chmod +x {artifacts:decompressedPath}/rdb-exporter/install.sh && sh {artifacts:decompressedPath}/rdb-exporter/install.sh
+      Run:
+        Setenv:
+          # Set Environment variable for embulk
+          DECOMPRESSED_PATH: "{artifacts:decompressedPath}/rdb-exporter"
+          EMBULK_VERSION: "{configuration:/EmbulkVersion}"
+          SOURCE_HOST: "{configuration:/SrcHost}"
+          SOURCE_PORT: "{configuration:/SrcPort}"
+          SOURCE_USER: "{configuration:/SrcUser}"
+          SOURCE_PASSWORD: "{configuration:/SrcPassword}"
+          SOURCE_DATABASE: "{configuration:/SrcDatabase}"
+          S3_BUCKET: "{configuration:/DstBucketName}"
+        Script: "python3 -u {artifacts:decompressedPath}/rdb-exporter/src/main.py"
+    Artifacts:
+      - URI: s3://BUCKET_NAME/COMPONENT_NAME/COMPONENT_VERSION/rdb-exporter.zip
+        Unarchive: "ZIP"
+  - Platform:
+      os: windows
+    Lifecycle:
+      Install:
+        Timeout: 600
+        Setenv:
+          DECOMPRESSED_PATH: "{artifacts:decompressedPath}/rdb-exporter"
+          EMBULK_VERSION: "{configuration:/EmbulkVersion}"
+        Script: powershell -ExecutionPolicy Bypass -File {artifacts:decompressedPath}/rdb-exporter/install.ps1
+      Run:
+        Setenv:
+          # Set Environment variable for embulk
+          DECOMPRESSED_PATH: "{artifacts:decompressedPath}/rdb-exporter"
+          EMBULK_VERSION: "{configuration:/EmbulkVersion}"
+          SOURCE_HOST: "{configuration:/SrcHost}"
+          SOURCE_PORT: "{configuration:/SrcPort}"
+          SOURCE_USER: "{configuration:/SrcUser}"
+          SOURCE_PASSWORD: "{configuration:/SrcPassword}"
+          SOURCE_DATABASE: "{configuration:/SrcDatabase}"
+          S3_BUCKET: "{configuration:/DstBucketName}"
+        Script: "python -u {artifacts:decompressedPath}/rdb-exporter/src/main.py"
+    Artifacts:
+      - URI: s3://BUCKET_NAME/COMPONENT_NAME/COMPONENT_VERSION/rdb-exporter.zip
+        Unarchive: "ZIP"

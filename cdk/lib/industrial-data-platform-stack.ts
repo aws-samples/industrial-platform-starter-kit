@@ -8,6 +8,7 @@ import { GreengrassBootstrap } from "./constructs/greengrass-bootstrap";
 import { GdkBucket } from "./constructs/gdk-publish/gdk-bucket";
 import * as path from "path";
 import { BlockPublicAccess } from "aws-cdk-lib/aws-s3";
+import * as python from "@aws-cdk/aws-lambda-python-alpha";
 
 import {
   PythonGdkPublish,
@@ -16,26 +17,34 @@ import {
 import { Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { GdkPublish } from "./constructs/gdk-publish/gdk-publish";
 import { SitewiseGateway } from "./constructs/sitewise-gateway";
-import { VirtualDevice } from "./constructs/virtual-device";
+import { VirtualDevice } from "./constructs/demo/virtual-device";
 import { Schedule } from "aws-cdk-lib/aws-events";
+import { Network } from "./constructs/network";
+import { Postgres } from "./constructs/demo/postgres";
+import {
+  JavaGdkPublish,
+  JavaVersion,
+} from "./constructs/gdk-publish/java-gdk-publish";
+import { Runtime } from "aws-cdk-lib/aws-lambda";
 
-interface IndustialDataPlatformStackProps extends cdk.StackProps {
+interface IndustrialDataPlatformStackProps extends cdk.StackProps {
   thingName: string;
   opcuaEndpointUri: string;
   provisionVirtualDevice?: boolean;
+  provisionDummyDatabase?: boolean;
 }
 
-export class IndustialDataPlatformStack extends cdk.Stack {
+export class IndustrialDataPlatformStack extends cdk.Stack {
   public readonly opcArchiver: GdkPublish;
   public readonly fileWatcher: GdkPublish;
-  public readonly installPolicy: Policy;
+  public readonly rdbExporter: GdkPublish;
   public readonly storage: Storage;
   public readonly datacatalog: Datacatalog;
 
   constructor(
     scope: Construct,
     id: string,
-    props: IndustialDataPlatformStackProps
+    props: IndustrialDataPlatformStackProps
   ) {
     super(scope, id, props);
 
@@ -45,6 +54,9 @@ export class IndustialDataPlatformStack extends cdk.Stack {
     });
 
     {
+      /**
+       * Edge related resources
+       */
       const componentBucket = new GdkBucket(this, "ComponentBucket", {
         gdkConfigPath: path.join(
           __dirname,
@@ -56,16 +68,25 @@ export class IndustialDataPlatformStack extends cdk.Stack {
         enforceSSL: true,
       });
 
+      // Register OpcArchiver component
       const opcArchiver = new PythonGdkPublish(this, "OpcArchiver", {
         componentBucket: componentBucket,
         asset: { path: path.join(__dirname, "../../components/opc-archiver") },
         pythonVersion: PythonVersion.PYTHON_3_9,
       });
 
+      // Register FileWatcher component
       const fileWatcher = new PythonGdkPublish(this, "FileWatcher", {
         componentBucket: componentBucket,
         asset: { path: path.join(__dirname, "../../components/file-watcher") },
         pythonVersion: PythonVersion.PYTHON_3_9,
+      });
+
+      // Register RdbExporter component
+      const rdbExporter = new JavaGdkPublish(this, "RdbExporter", {
+        componentBucket: componentBucket,
+        asset: { path: path.join(__dirname, "../../components/rdb-exporter") },
+        javaVersion: JavaVersion.CORRETTO8,
       });
 
       const bootstrap = new GreengrassBootstrap(this, "GreengrassBootstrap", {
@@ -88,19 +109,70 @@ export class IndustialDataPlatformStack extends cdk.Stack {
       );
       storage.opcRawBucket.grantWrite(bootstrap.tesRole);
       storage.fileRawBucket.grantWrite(bootstrap.tesRole);
+      storage.rdbArchiveBucket.grantReadWrite(bootstrap.tesRole);
 
       this.opcArchiver = opcArchiver;
       this.fileWatcher = fileWatcher;
-      this.installPolicy = bootstrap.installPolicy;
+      this.rdbExporter = rdbExporter;
+
+      // Provision virtual resources
+      let network;
+      let virtualDevice;
+      if (props.provisionVirtualDevice || props.provisionDummyDatabase) {
+        network = new Network(this, "Network", {});
+      }
 
       if (props.provisionVirtualDevice) {
-        new VirtualDevice(this, "VirtualDevice", {
+        // create virtual device
+        virtualDevice = new VirtualDevice(this, "VirtualDevice", {
           installPolicy: bootstrap.installPolicy,
+          network: network!,
+        });
+      }
+
+      if (props.provisionDummyDatabase) {
+        const database = new Postgres(this, "DummyDatabase", {
+          network: network!,
+        });
+        // Ingest dummy data to database using Lambda
+        const ingestor = new python.PythonFunction(this, "DummyDataIngestor", {
+          entry: path.join(__dirname, "../lambda/dummy_data_ingestor"),
+          vpc: network!.vpc,
+          runtime: Runtime.PYTHON_3_11,
+          timeout: cdk.Duration.minutes(1),
+          environment: {
+            DB_NAME: database.databaseName,
+            DB_USER: database.secret
+              .secretValueFromJson("username")
+              .unsafeUnwrap()
+              .toString(),
+            DB_PASSWORD: database.secret
+              .secretValueFromJson("password")
+              .unsafeUnwrap()
+              .toString(),
+            DB_HOST: database.hostname,
+            DB_PORT: database.port.toString(),
+          },
+        });
+
+        if (props.provisionVirtualDevice) {
+          virtualDevice?.instance.connections!.securityGroups.forEach(
+            (securityGroup) => {
+              database.allowInboundAccess(securityGroup);
+            }
+          );
+        }
+
+        ingestor.connections.securityGroups.forEach((securityGroup) => {
+          database.allowInboundAccess(securityGroup);
         });
       }
     }
 
     {
+      /**
+       * Cloud related resources
+       */
       const opcProcessor = new OpcProcessor(this, "OpcProcessor", {
         database: datacatalog.database,
         sourceTable: datacatalog.opcRawTable,

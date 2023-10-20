@@ -1,10 +1,10 @@
 import * as cdk from "aws-cdk-lib";
 import { Template } from "aws-cdk-lib/assertions";
-import { IndustialDataPlatformStack } from "../lib/industrial-data-platform-stack";
+import { IndustrialDataPlatformStack } from "../lib/industrial-data-platform-stack";
 
 test("SnapshotTest", () => {
   const app = new cdk.App();
-  const stack = new IndustialDataPlatformStack(app, "MyTestStack", {
+  const stack = new IndustrialDataPlatformStack(app, "MyTestStack", {
     thingName: "thing",
     opcuaEndpointUri: "opc.tcp://localhost:4840",
     provisionVirtualDevice: true,

@@ -51,6 +51,12 @@
     "thingName": "IndustrialDataPlatformGateway",
     "opcuaEndpointUri": "opc.tcp://localhost:52250",
     "sourceDir": "/home/ggc_user/data",
-    "quicksightUserName": "Admin/XXXXXX"
+    "quicksightUserName": "Admin/XXXXXX",
+    "rdbHost": "xxxx.ap-northeast-1.rds.amazonaws.com",
+    "rdbPort": "5432",
+    "rdbUser": "root",
+    "rdbPassword": "xxxx",
+    "rdbDatabase": "prototype",
+    "rdbExportIntervalSec": 60
   }
 }
