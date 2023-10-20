@@ -24,6 +24,17 @@ EMBULK_VERSION = os.environ.get("EMBULK_VERSION")
 EMBULK_EXEC_PATH = os.path.join(DECOMPRESSED_PATH, f"embulk-{EMBULK_VERSION}.jar")
 
 
+def set_secret_env():
+    session = boto3.Session()
+    credentials = session.get_credentials()
+    credentials = credentials.get_frozen_credentials()
+
+    # Set credentials to environment variables for embulk
+    os.environ["AWS_ACCESS_KEY_ID"] = credentials.access_key
+    os.environ["AWS_SECRET_ACCESS_KEY"] = credentials.secret_key
+    os.environ["AWS_SESSION_TOKEN"] = credentials.token
+
+
 async def shutdown(signal):
     logger.info(f"Received exit signal {signal.name}...")
     exit_event.set()
@@ -45,6 +56,7 @@ async def embulk_task(config: GGConfig):
         if not os.path.exists(cursor_dir_path):
             os.makedirs(cursor_dir_path)
 
+        set_secret_env()
         process = await asyncio.create_subprocess_exec(
             "java",
             "-jar",
@@ -77,14 +89,6 @@ async def run_task(config: GGConfig):
 
 
 async def main():
-    session = boto3.Session()
-    credentials = session.get_credentials()
-
-    # Set credentials to environment variables for embulk
-    os.environ["AWS_ACCESS_KEY_ID"] = credentials.access_key
-    os.environ["AWS_SECRET_ACCESS_KEY"] = credentials.secret_key
-    os.environ["AWS_SESSION_TOKEN"] = credentials.token
-
     try:
         if sys.platform != "win32":
             for s in [signal.SIGTERM, signal.SIGINT]:
