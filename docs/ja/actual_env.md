@@ -307,4 +307,34 @@ aws iot describe-thing --thing-name IndustrialDataPlatformGateway
 cdk deploy GreengrassComponentDeployStack --require-approval never
 ```
 
-以上の手順にて、すべてのセットアップが正しくできていれば S3 へデータが上がってくるはずです。もし上がってこない場合は[エッジゲートウェイデバイスへ Greengrass をインストール](./deploy_edge_ja.md)を参考に Greengrass のログや IoT Sitewise のステータスを確認してみてください。
+以上の手順にて、すべてのセットアップが正しくできていれば S3 へデータが上がってきます。
+
+## S3 へ上がってこない場合の確認ポイント
+
+まずは[エッジゲートウェイデバイスへ Greengrass をインストール](./deploy_edge_ja.md)を参考に Greengrass のログや IoT Sitewise のステータスを確認してみてください。
+
+### OPC-UA
+
+- SiteWise に設定したデバイスエクスプローラの URI を確認
+
+  - データが正しく読み込まれない場合、OPC-UA サーバの URI 設定が間違っている可能性があります。`opc.tcp://127.0.0.1:52250`といったフォーマットですが、ポート番号などはデバイスエクスプローラでの設定によって変更されている場合があるため確認ください。まずは opcua-commander など適当な OPC-UA クライアントを利用し、正しく値を取得できるか確認することをおすすめします。
+
+- ストリームマネージャが生成するストリームファイルの確認
+
+  - SiteWise コンポーネントが OPC データを収集するとストリームに書き込まれますが、ストリームの実体は C:\greengrass\v2\work\aws.greengrass.StreamManager\opc_archiver_stream の中にあるファイル群となります。ここにファイルができているか確認してみてください。ここにファイルがない場合は、SiteWise の設定を見直してみてください。
+
+- S3 送信前のデータアーカイブディレクトリの確認
+  - S3 に送信されるファイルは C:\greengrass\v2\work\com.example.opc-archiver\opclogs\archive 以下にファイルを作成して S3 送信を行います。このフォルダにファイルが滞留ていないか確認してみてください(滞留している場合はログになんらかのエラーが出力されているかと思います)。
+
+### RDB
+
+まずは Greengrass のログを確認してください。可能性として高いのは Embulk や Embulk のプラグインのインストールが失敗している・Embulk の実行に失敗している、などが考えられます。
+
+- Embulk のプラグインのインストールに失敗している場合
+  - `C:\Windows\System32\config\systemprofile`に ggc_user がアクセス権限を持っていることを今一度確認してみてください。
+- Embulk の実行に失敗
+  - Embulk の実行に失敗している場合は RDB へのアクセスに失敗している可能性があります。`cdk.json` や Greengrass のデプロイメントの merge 項目を見直し、正しく host や password が設定されているか確認してください。もし正しく設定されている場合は、エッジデバイスからデータベースへの接続が可能であることを確認してください（ファイアウォールの設定などで弾かれている可能性があります）。適当な RDB クライアント（Windows であれば[DBeaver](https://dbeaver.io/)など）を利用し、対象データベースやテーブルにクエリが可能なことを確認してください。
+
+### フォルダ監視によるファイル転送
+
+S3 に送信されるファイルは `C:\greengrass\v2\work\com.example.opc-archiver\opclogs\archive` 以下にファイルを作成して S3 送信を行います。このフォルダにファイルが滞留ていないか確認してみてください(滞留している場合はログになんらかのエラーが出力されているかと思います)。
