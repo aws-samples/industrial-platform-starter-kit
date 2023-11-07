@@ -1,7 +1,9 @@
 import asyncio
+import glob
 import logging
 import os
 import re
+import shutil
 import signal
 import sys
 
@@ -81,6 +83,24 @@ async def embulk_task(config: GGConfig):
             logger.info(stdout.decode().strip())
         if stderr:
             logger.error(stderr.decode().strip())
+
+    if sys.platform == "win32":
+        # NOTE: on windows environment, jruby leaves stale jffi*.dll files in temp directory
+        # See: https://github.com/jruby/jruby/issues/3657
+        temp_dir = "C:\\Users\\ggc_user\\AppData\\Local\\Temp"
+        for dll_file in glob.glob(os.path.join(temp_dir, "jffi*.dll")):
+            try:
+                os.remove(dll_file)
+                logger.info(f"Removed: {dll_file}")
+            except OSError as e:
+                logger.error(f"Error removing {dll_file}: {e.strerror}")
+
+        for jruby_dir in glob.glob(os.path.join(temp_dir, "jruby-*")):
+            try:
+                shutil.rmtree(jruby_dir)
+                logger.info(f"Removed directory: {jruby_dir}")
+            except OSError as e:
+                logger.error(f"Error removing directory {jruby_dir}: {e.strerror}")
 
     return process.returncode
 
