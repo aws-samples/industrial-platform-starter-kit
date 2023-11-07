@@ -65,16 +65,28 @@ Embulk プラグインの[PostgreSQL input plugin for Embulk](https://github.com
 ```json
 {
     ...略...,
+    // ゲートウェイデバイスの名前
+    "gatewayNames": ["factory1", "factory2"],
+    // OPC-UAエンドポイントURI
     "opcuaEndpointUri": "opc.tcp://your-server:port",
+    // 監視対象ディレクトリ
     "sourceDir": "/path/to/source/dir",
+    // RDBホスト
     "rdbHost": "your-rdb-server-host",
+    // RDBポート
     "rdbPort": "5432",
+    // RDBユーザ名
     "rdbUser": "user",
+    // RDBパスワード
     "rdbPassword": "password",
+    // RDB データベース名
     "rdbDatabase": "database name",
-    "rdbExportIntervalSec": 60
+    // RDB転送周期
+    "rdbExportIntervalSec": 300
 }
 ```
+
+なお`gatewayNames`は複数のエッジゲートウェイデバイスから同じ S3 のバケットへ転送することを想定し、複数指定できるようにしています。
 
 `cdk/bin/industrial-data-platform.ts`を開き、`provisionVirtualDevice`および`provisionDummyDatabase`を`false`に変更します。
 

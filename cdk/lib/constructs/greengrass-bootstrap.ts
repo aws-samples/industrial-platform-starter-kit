@@ -21,9 +21,9 @@ export interface GreengrassBootstrapProps {
    */
   componentBuckets?: s3.IBucket[];
   /**
-   * IoT Thing name.
+   * Gateway Names.
    */
-  thingName?: string;
+  gatewayNames: string[];
   /**
    * If `true`, install command output will contain --deploy-dev-tools as `true`.
    * See: https://docs.aws.amazon.com/greengrass/v2/developerguide/configure-installer.html
@@ -39,7 +39,6 @@ export class GreengrassBootstrap extends Construct {
    */
   private readonly roleAlias: iot.CfnRoleAlias;
   private readonly thingPolicy: iot.CfnPolicy;
-  public readonly thingName: string;
   public readonly tesRole: iam.Role;
   public readonly testRolePolicy: iam.ManagedPolicy;
   public readonly installPolicy: iam.ManagedPolicy;
@@ -47,7 +46,8 @@ export class GreengrassBootstrap extends Construct {
   constructor(scope: Construct, id: string, props: GreengrassBootstrapProps) {
     super(scope, id);
 
-    this.thingName = props.thingName ?? Names.uniqueId(this);
+    const stackName = Stack.of(this).stackName;
+    const gatewayNames = props.gatewayNames;
     const deployDevTools = props.deployDevTools ?? false;
 
     const tesRolePolicy = new iam.ManagedPolicy(
@@ -94,7 +94,7 @@ export class GreengrassBootstrap extends Construct {
 
     // Create an IoT Thing policy to be assigned to Greengrass.
     const thingPolicy = new iot.CfnPolicy(this, "GreengrassThingPolicy", {
-      policyName: `${this.thingName}ThingPolicy`,
+      policyName: `${stackName}ThingPolicy`,
       policyDocument: new iam.PolicyDocument({
         statements: [
           new iam.PolicyStatement({
@@ -171,22 +171,26 @@ export class GreengrassBootstrap extends Construct {
     this.thingPolicy = thingPolicy;
     this.installPolicy = installPolicy;
 
-    new CfnOutput(this, `GreengrassInstallCommandForWindows`, {
-      value: this.createInstallCommand(
-        GREENGRASS_WINDOWS_INSTALL_PATH,
-        GREENGRASS_JAR_PATH.replace(/\//g, "\\"),
-        GreengrassInstallPlatform.Windows,
-        deployDevTools
-      ),
-    });
+    gatewayNames.forEach((gatewayName) => {
+      new CfnOutput(this, `${gatewayName}-GreengrassInstallCommandForWindows`, {
+        value: this.createInstallCommand(
+          GREENGRASS_WINDOWS_INSTALL_PATH,
+          GREENGRASS_JAR_PATH.replace(/\//g, "\\"),
+          GreengrassInstallPlatform.Windows,
+          deployDevTools,
+          gatewayName
+        ),
+      });
 
-    new CfnOutput(this, `GreengrassInstallCommandForLinux`, {
-      value: this.createInstallCommand(
-        GREENGRASS_LINUX_INSTALL_PATH,
-        GREENGRASS_JAR_PATH,
-        GreengrassInstallPlatform.Linux,
-        deployDevTools
-      ),
+      new CfnOutput(this, `${gatewayName}-GreengrassInstallCommandForLinux`, {
+        value: this.createInstallCommand(
+          GREENGRASS_LINUX_INSTALL_PATH,
+          GREENGRASS_JAR_PATH,
+          GreengrassInstallPlatform.Linux,
+          deployDevTools,
+          gatewayName
+        ),
+      });
     });
 
     new CfnOutput(this, `GreengrassInstallPolicyName`, {
@@ -203,7 +207,8 @@ export class GreengrassBootstrap extends Construct {
     installPath: string,
     installerPath: string,
     platform: GreengrassInstallPlatform,
-    deployDevTools: boolean
+    deployDevTools: boolean,
+    thingName: string
   ): string {
     const defaultUser =
       platform === GreengrassInstallPlatform.Windows
@@ -214,7 +219,7 @@ export class GreengrassBootstrap extends Construct {
 
     return `${rootExec}java "-Droot=${installPath}" "-Dlog.store=FILE"  -jar ${installerPath} --aws-region ${
       Stack.of(this).region
-    }  --thing-name ${this.thingName} --thing-policy-name ${this.thingPolicy
+    }  --thing-name ${thingName} --thing-policy-name ${this.thingPolicy
       .policyName!} --tes-role-name  ${
       this.tesRole.roleName
     } --tes-role-alias-name ${this.roleAlias

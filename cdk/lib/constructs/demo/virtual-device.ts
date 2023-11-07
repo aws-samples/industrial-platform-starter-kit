@@ -8,6 +8,7 @@ import * as path from "path";
 import { Network } from "../network";
 
 export interface VirtualDeviceProps {
+  deviceName: string;
   installPolicy: iam.ManagedPolicy;
   network: Network;
 }
@@ -92,6 +93,9 @@ export class VirtualDevice extends Construct {
       `echo install opcua package`,
       "pip3 install opcua==0.98.13",
 
+      // Setup environ variables
+      `export ROOT_NODE=${props.deviceName}`,
+
       // Run opcua dummy server
       "sudo systemctl daemon-reload",
       "sudo systemctl enable opcua",
@@ -100,7 +104,9 @@ export class VirtualDevice extends Construct {
     );
     const instance = new ec2.Instance(this, "Instance", {
       vpc,
-      vpcSubnets: vpc.selectSubnets({ subnetType: ec2.SubnetType.PUBLIC }),
+      vpcSubnets: vpc.selectSubnets({
+        subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+      }),
       instanceType: ec2.InstanceType.of(
         ec2.InstanceClass.T2,
         ec2.InstanceSize.LARGE

@@ -30,7 +30,7 @@ interface RdbConfigProps {
   destinationBucketName: string;
 }
 interface GreengrassComponentDeployStackProps extends StackProps {
-  thingName: string;
+  gatewayNames: string[];
   deploymentName: string;
   opcConfig: OpcConfigProps;
   fileConfig: FileConfigProps;
@@ -94,14 +94,15 @@ export class GreengrassComponentDeployStack extends Stack {
       },
     ];
 
-    const deploy = new GreengrassComponentDeploy(
-      this,
-      "GreengrassComponentDeploy",
-      {
-        thingName: props.thingName,
-        deploymentName: props.deploymentName,
-        components: components,
-      }
-    );
+    // TODO: fix to deploy to thing group (not for single device)
+    // const deploy = new GreengrassComponentDeploy(
+    //   this,
+    //   "GreengrassComponentDeploy",
+    //   {
+    //     thingName: props.thingName,
+    //     deploymentName: props.deploymentName,
+    //     components: components,
+    //   }
+    // );
   }
 }

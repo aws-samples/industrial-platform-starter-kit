@@ -28,7 +28,7 @@ import {
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 
 interface IndustrialDataPlatformStackProps extends cdk.StackProps {
-  thingName: string;
+  gatewayNames: string[];
   opcuaEndpointUri: string;
   provisionVirtualDevice?: boolean;
   provisionDummyDatabase?: boolean;
@@ -91,22 +91,25 @@ export class IndustrialDataPlatformStack extends cdk.Stack {
 
       const bootstrap = new GreengrassBootstrap(this, "GreengrassBootstrap", {
         componentBuckets: [componentBucket],
-        thingName: props.thingName,
+        gatewayNames: props.gatewayNames,
       });
 
-      const sitewise = new SitewiseGateway(this, "SitewiseGateway", {
-        gatewayName: "sitewise-gateway",
-        coreDeviceThingName: bootstrap.thingName,
-        endpointUri: props.opcuaEndpointUri,
+      props.gatewayNames.forEach((gatewayName) => {
+        new SitewiseGateway(this, `SitewiseGateway-${gatewayName}`, {
+          gatewayName: gatewayName,
+          coreDeviceThingName: gatewayName,
+          endpointUri: props.opcuaEndpointUri,
+        });
       });
 
-      // Allow greengrass to send to IoT SiteWise
+      // Allow greengrass core device to send to IoT SiteWise
       bootstrap.addToTesRolePolicy(
         new PolicyStatement({
           actions: ["iotsitewise:BatchPutAssetPropertyValue"],
           resources: ["*"],
         })
       );
+      // Allow greengrass device to send to buckets
       storage.opcRawBucket.grantWrite(bootstrap.tesRole);
       storage.fileRawBucket.grantWrite(bootstrap.tesRole);
       storage.rdbArchiveBucket.grantReadWrite(bootstrap.tesRole);
@@ -117,16 +120,19 @@ export class IndustrialDataPlatformStack extends cdk.Stack {
 
       // Provision virtual resources
       let network;
-      let virtualDevice;
+      let virtualDevices: VirtualDevice[] = [];
       if (props.provisionVirtualDevice || props.provisionDummyDatabase) {
         network = new Network(this, "Network", {});
       }
 
       if (props.provisionVirtualDevice) {
         // create virtual device
-        virtualDevice = new VirtualDevice(this, "VirtualDevice", {
-          installPolicy: bootstrap.installPolicy,
-          network: network!,
+        const virtualDevices = props.gatewayNames.map((gatewayName) => {
+          return new VirtualDevice(this, `VirtualDevice-${gatewayName}`, {
+            deviceName: gatewayName,
+            installPolicy: bootstrap.installPolicy,
+            network: network!,
+          });
         });
       }
 
@@ -156,11 +162,13 @@ export class IndustrialDataPlatformStack extends cdk.Stack {
         });
 
         if (props.provisionVirtualDevice) {
-          virtualDevice?.instance.connections!.securityGroups.forEach(
-            (securityGroup) => {
-              database.allowInboundAccess(securityGroup);
-            }
-          );
+          virtualDevices.forEach((virtualDevice) => {
+            virtualDevice?.instance.connections!.securityGroups.forEach(
+              (securityGroup) => {
+                database.allowInboundAccess(securityGroup);
+              }
+            );
+          });
         }
 
         ingestor.connections.securityGroups.forEach((securityGroup) => {

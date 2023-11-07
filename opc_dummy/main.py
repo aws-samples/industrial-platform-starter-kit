@@ -1,9 +1,12 @@
 import argparse
 import logging
+import os
 import random
 import time
 
 from opcua import Server, ua
+
+ROOT_NODE = os.environ.get("ROOT_NODE", "root")
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -16,7 +19,7 @@ logger.addHandler(handler)
 
 # Valid types: int, float, string, bool
 nodes = {
-    "root": {
+    ROOT_NODE: {
         "tag1": [int, 0, 1, 100],
         "tag2": [float, 10.0, -2, 2],
         "tag3": [str, ["good", "bad", "nice"]],

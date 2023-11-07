@@ -34,4 +34,4 @@ cdk destroy GreengrassComponentDeployStack
 cdk destroy IndustialDataPlatformStack
 ```
 
-CloudFormation のスタック一覧から`IndustrialDataPlatformGatewayThingPolicy`が消えていれば削除は完了となります。
+CloudFormation のスタック一覧から`IndustrialDataPlatformStack`が消えていれば削除は完了となります。
