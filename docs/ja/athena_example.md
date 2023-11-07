@@ -4,23 +4,41 @@ OPC-UA データを保管している S3 バケットは Raw バケットと Pro
 
 ## Processed バケット
 
-クエリ時はパーティションの指定が必要です。具体的には`datehour`および`tag`の指定が必要です。`datehour`は YYYY/MM/dd/HH のフォーマット、タグは文字列で指定します。下記にその SQL 例を示します。
+クエリ時はパーティションの指定が必要です。具体的には`datehour`および`tag`の指定が必要です。`datehour`は `YYYY/MM/dd/HH` のフォーマット、タグは文字列で指定します。なおタグは URL エンコーディングされた状態であることを考慮する必要があります。これは Athena のパーティションに利用できる文字列が ASCII 文字である制約があるためです。下記にその SQL 例を示します。
 
 ```sql
 SELECT
     "value"."doublevalue"
+    -- 日本のタイムゾーンを考慮し9を足す
     ,"timestamp"  + interval '9' hour as "timestamp"
     , datehour
-    , tag
+    -- URLエンコーディングされたタグ
+    , url_encoded_tag
+    -- URLエンコード前の元のタグ名
+    , REPLACE(url_decode(REPLACE(url_encoded_tag, '/', '_')), '_', '/') as tag
 FROM "industrial_platform"."opc_processed"
 WHERE datehour BETWEEN
+-- 2023-08-17 00:00:00を、タイムゾーンを考慮してYYYY/MM/dd/HHのフォーマットに変換する
 date_format(at_timezone(timestamp '2023-08-17 00:00:00', INTERVAL '-9' HOUR), '%Y/%m/%d/%H')
     AND date_format(at_timezone(timestamp '2023-08-18 00:00:00', INTERVAL '-9' HOUR), '%Y/%m/%d/%H')
-  AND tag IN ('/root/tag2')
+-- URLエンコードして指定する
+  AND url_encoded_tag IN (REPLACE(URL_ENCODE(REPLACE('/root/tag2', '/', '_')), '_', '/'))
+-- 必要であればさらにタイムスタンプを絞り込む
+-- NOTE: パーティション (datehour) のみの指定の場合、１時間分のデータ全てが取得されます
   AND timestamp BETWEEN
   at_timezone(timestamp '2023-08-17 00:00:00', INTERVAL '-9' HOUR)
       AND at_timezone(timestamp '2023-08-18 00:00:00', INTERVAL '-9' HOUR)
 ORDER BY timestamp
+```
+
+複雑に見えるかもしれませんが、実際にやっていることはシンプルで、本質は下記のようなクエリです。
+
+```sql
+SELECT
+    value, tag
+FROM "table"
+WHERE datehour BETWEEN 2023/01/01/00 AND 2023/01/01/23
+    AND tag='/root/tag'
 ```
 
 上記クエリでは、
@@ -67,6 +85,12 @@ WHERE datehour='2023/08/17/00'
 ORDER BY timestamp, TAG
 LIMIT 10
 
+```
+
+また、ある１時間の間（あるパーティション）のタグ一覧は下記により取得できます。OPC サーバに設定されたタグがすべて S3 へ収集されているか確かめる用途などでお使いください。
+
+```sql
+SELECT DISTINCT(propertyalias) FROM "industrial_platform"."opc_raw" WHERE datehour='2023/11/02/14' order by propertyalias
 ```
 
 では続いてタグごとに最新のデータを取得してみましょう。上記のクエリを応用し、たとえば下記のように記述できます。1 時間の遅れが許容できないユースケースでご参考にしてください。
