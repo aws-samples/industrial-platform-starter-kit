@@ -27,4 +27,4 @@ java -jar ${EMBULK_EXEC_PATH} gem install liquid -v 4.0.0
 chmod +x ${DECOMPRESSED_PATH}/src/main.py
 
 echo "Installing python packages..."
-python3 -m pip install -v -r ${DECOMPRESSED_PATH}/requirements.txt
+python3 -m pip --timeout=120 install -v -r ${DECOMPRESSED_PATH}/requirements.txt

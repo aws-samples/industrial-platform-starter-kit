@@ -36,7 +36,7 @@ Manifests:
     Lifecycle:
       Install:
         Timeout: 300
-        Script: python3 -m pip install -v -r {artifacts:decompressedPath}/file-watcher/requirements.txt
+        Script: python3 -m pip --timeout=120 install -v -r {artifacts:decompressedPath}/file-watcher/requirements.txt
       Run:
         Script: "python3 -u {artifacts:decompressedPath}/file-watcher/src/main.py"
     Artifacts:
@@ -47,7 +47,7 @@ Manifests:
     Lifecycle:
       Install:
         Timeout: 300
-        Script: python -m pip install -v -r {artifacts:decompressedPath}/file-watcher/requirements.txt
+        Script: python -m pip --timeout=120 install -v -r {artifacts:decompressedPath}/file-watcher/requirements.txt
       Run:
         Script: "python -u {artifacts:decompressedPath}/file-watcher/src/main.py"
     Artifacts:

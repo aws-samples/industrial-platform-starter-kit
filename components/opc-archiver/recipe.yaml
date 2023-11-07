@@ -32,7 +32,7 @@ Manifests:
     Lifecycle:
       Install:
         Timeout: 300
-        Script: python3 -m pip install -v -r {artifacts:decompressedPath}/opc-archiver/requirements.txt
+        Script: python3 -m pip --timeout=120 install -v -r {artifacts:decompressedPath}/opc-archiver/requirements.txt
       Run:
         Script: "python3 -u {artifacts:decompressedPath}/opc-archiver/src/main.py"
     Artifacts:
@@ -43,7 +43,7 @@ Manifests:
     Lifecycle:
       Install:
         Timeout: 300
-        Script: python -m pip install -v -r {artifacts:decompressedPath}/opc-archiver/requirements.txt
+        Script: python -m pip --timeout=120 install -v -r {artifacts:decompressedPath}/opc-archiver/requirements.txt
       Run:
         Script: "python -u {artifacts:decompressedPath}/opc-archiver/src/main.py"
     Artifacts:

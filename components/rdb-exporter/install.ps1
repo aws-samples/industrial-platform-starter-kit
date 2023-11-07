@@ -35,4 +35,4 @@ java -jar $EMBULK_EXEC_PATH gem install embulk-output-s3
 java -jar $EMBULK_EXEC_PATH gem install liquid -v 4.0.0
 
 Write-Host "Installing python packages..."
-python -m pip install -v -r "$DECOMPRESSED_PATH\requirements.txt"
+python -m pip install --timeout=120 -v -r "$DECOMPRESSED_PATH\requirements.txt"
