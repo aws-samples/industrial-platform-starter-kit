@@ -93,12 +93,14 @@ export class Datacatalog extends Construct {
     cfnopcRawTable.addPropertyOverride("TableInput.Parameters", {
       "projection.enabled": true,
       "projection.datehour.type": "date",
-      "projection.datehour.range": "2023/01/01/00,NOW",
+      // NOTE: To account for timezones that are ahead of UTC, specify a far future date instead of `NOW` for the end of the range.
+      "projection.datehour.range": "2023/01/01/00,2123/01/01/00",
       "projection.datehour.format": "yyyy/MM/dd/HH",
       "projection.datehour.interval": 1,
       "projection.datehour.interval.unit": "HOURS",
       "storage.location.template":
         `s3://${props.storage.opcRawBucket.bucketName}/` + "${datehour}/",
+      "serialization.encoding": "utf8",
     });
 
     // Glue table for processed opc data.
@@ -112,7 +114,7 @@ export class Datacatalog extends Construct {
           type: glue.Schema.STRING,
         },
         {
-          name: "tag",
+          name: "url_encoded_tag",
           type: glue.Schema.STRING,
         },
       ],
@@ -151,14 +153,16 @@ export class Datacatalog extends Construct {
     cfnopcProcessedTable.addPropertyOverride("TableInput.Parameters", {
       "projection.enabled": true,
       "projection.datehour.type": "date",
-      "projection.datehour.range": "2023/01/01/00,NOW",
+      // NOTE: To account for timezones that are ahead of UTC, specify a far future date instead of `NOW` for the end of the range.
+      "projection.datehour.range": "2023/01/01/00,2123/01/01/00",
       "projection.datehour.format": "yyyy/MM/dd/HH",
       "projection.datehour.interval": 1,
       "projection.datehour.interval.unit": "HOURS",
-      "projection.tag.type": "injected",
+      "projection.url_encoded_tag.type": "injected",
       "storage.location.template":
         `s3://${props.storage.opcProcessedBucket.bucketName}/` +
-        "${tag}/${datehour}/",
+        "${url_encoded_tag}/${datehour}/",
+      "serialization.encoding": "utf8",
     });
 
     // Define glue table to store file data.
@@ -189,12 +193,13 @@ export class Datacatalog extends Construct {
       "skip.header.line.count": "1", // ignore header column
       "projection.enabled": true,
       "projection.date.type": "date",
-      "projection.date.range": "2023/01/01,NOW",
+      "projection.date.range": "2023/01/01,2123/01/01/00",
       "projection.date.format": "yyyy/MM/dd",
       "projection.date.interval": 1,
       "projection.date.interval.unit": "DAYS",
       "storage.location.template":
         `s3://${props.storage.fileProcessedBucket.bucketName}/` + "${date}/",
+      "serialization.encoding": "utf8",
     });
 
     // Define glue table to store rdb data.
@@ -218,6 +223,7 @@ export class Datacatalog extends Construct {
       "skip.header.line.count": "1", // ignore header column
       "projection.enabled": true,
       "storage.location.template": `s3://${props.storage.rdbArchiveBucket.bucketName}/prototype/GradeMaster/`,
+      "serialization.encoding": "utf8",
     });
 
     const batchProductionRecordTable = new glue.Table(
@@ -250,13 +256,14 @@ export class Datacatalog extends Construct {
       "skip.header.line.count": "1", // ignore header column
       "projection.enabled": true,
       "projection.date.type": "date",
-      "projection.date.range": "2023/01/01,NOW",
+      "projection.date.range": "2023/01/01,2123/01/01/00",
       "projection.date.format": "yyyy/MM/dd",
       "projection.date.interval": 1,
       "projection.date.interval.unit": "DAYS",
       "storage.location.template":
         `s3://${props.storage.rdbArchiveBucket.bucketName}/prototype/BatchProductionRecord/` +
         "${date}/",
+      "serialization.encoding": "utf8",
     });
 
     this.database = IndustrialPlatformDatabase;

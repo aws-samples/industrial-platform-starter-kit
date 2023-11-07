@@ -1,6 +1,7 @@
 import os
 import time
 import typing
+import urllib.parse
 from datetime import datetime, timedelta
 
 import boto3
@@ -49,14 +50,15 @@ def run_athena_query(query: str, database: str, workgroup: str):
 
 def build_insert_query(datehour: str, tags: typing.List):
     """Build insert query."""
-    # NOTE: Some properties contains `$`, which is not supported in Athena query.
-    # To resolve this, replace `$` with `_`.
+    # NOTE: Athena partition is only available for ascii printable characters.
+    # To avoid this issue, convert to url encoded string.
+
     query_string = f"""
     INSERT INTO {DATABASE}.{TARGET_TABLE}
     SELECT 
         propertyvalue.value AS value,
         date_add('millisecond',propertyvalue.timestamp.offsetinnanos / 1000000,from_unixtime(propertyvalue.timestamp.timeinSeconds)) as timestamp,
-        datehour, replace(propertyalias, '$', '_') AS tag
+        datehour, REPLACE(URL_ENCODE(REPLACE(propertyalias, '/', '_')), '_', '/') AS url_encoded_tag
     FROM "{SOURCE_TABLE}" CROSS JOIN UNNEST(propertyvalues) AS t(propertyvalue)
     WHERE datehour='{datehour}' AND propertyalias in ('{"', '".join(tags)}')
     """
