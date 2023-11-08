@@ -64,9 +64,9 @@ export class VirtualDevice extends Construct {
       // "echo 'export PATH=$PATH:/home/ggc_user/.local/bin' >> ~/.bashrc",
       // Install greengrass package
       // See: https://docs.aws.amazon.com/greengrass/v2/developerguide/manual-installation.html#download-greengrass-core-v2
-      "curl -s https://d2s8p88vqu9w66.cloudfront.net/releases/greengrass-nucleus-latest.zip > greengrass-nucleus-latest.zip",
-      "unzip greengrass-nucleus-latest.zip -d GreengrassInstaller && rm greengrass-nucleus-latest.zip",
-      "java -jar ./GreengrassInstaller/lib/Greengrass.jar --version",
+      // "curl -s https://d2s8p88vqu9w66.cloudfront.net/releases/greengrass-nucleus-latest.zip > greengrass-nucleus-latest.zip",
+      // "unzip greengrass-nucleus-latest.zip -d GreengrassInstaller && rm greengrass-nucleus-latest.zip",
+      // "java -jar ./GreengrassInstaller/lib/Greengrass.jar --version",
       // Add permission
       // See: https://docs.aws.amazon.com/greengrass/v2/developerguide/troubleshooting.html#greengrass-cloud-issues
       `echo "root    ALL=(ALL:ALL) ALL" | sudo tee -a /etc/sudoers`,
@@ -93,8 +93,10 @@ export class VirtualDevice extends Construct {
       `echo install opcua package`,
       "pip3 install opcua==0.98.13",
 
-      // Setup environ variables
-      `export ROOT_NODE=${props.deviceName}`,
+      // Setup environment variables
+      "sudo mkdir -p /etc/systemd/system/opcua.service.d",
+      `echo "[Service]" | sudo tee /etc/systemd/system/opcua.service.d/env.conf`,
+      `echo "Environment=\"ROOT_NODE=${props.deviceName}\"" | sudo tee -a /etc/systemd/system/opcua.service.d/env.conf`,
 
       // Run opcua dummy server
       "sudo systemctl daemon-reload",
