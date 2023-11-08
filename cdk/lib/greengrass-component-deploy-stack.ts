@@ -30,7 +30,7 @@ interface RdbConfigProps {
   destinationBucketName: string;
 }
 interface GreengrassComponentDeployStackProps extends StackProps {
-  thingName: string;
+  groupName: string;
   deploymentName: string;
   opcConfig: OpcConfigProps;
   fileConfig: FileConfigProps;
@@ -94,11 +94,12 @@ export class GreengrassComponentDeployStack extends Stack {
       },
     ];
 
+    // TODO: fix to deploy to thing group (not for single device)
     const deploy = new GreengrassComponentDeploy(
       this,
       "GreengrassComponentDeploy",
       {
-        thingName: props.thingName,
+        groupName: props.groupName,
         deploymentName: props.deploymentName,
         components: components,
       }

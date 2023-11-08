@@ -6,7 +6,8 @@ import { GreengrassComponentDeployStack } from "../lib/greengrass-component-depl
 import { QuicksightStack } from "../lib/quicksight-stack";
 
 const app = new cdk.App();
-const thingName = app.node.tryGetContext("thingName");
+const thingGroupName = app.node.tryGetContext("thingGroupName");
+const gatewayNames: string[] = app.node.tryGetContext("gatewayNames");
 const opcuaEndpointUri = app.node.tryGetContext("opcuaEndpointUri");
 const sourceDir = app.node.tryGetContext("sourceDir");
 const quicksightUserName = app.node.tryGetContext("quicksightUserName");
@@ -19,11 +20,12 @@ const platformStack = new IndustrialDataPlatformStack(
       account: process.env.CDK_DEFAULT_ACCOUNT,
       region: process.env.CDK_DEFAULT_REGION,
     },
-    thingName: thingName,
+    thingGroupName: thingGroupName,
+    gatewayNames: gatewayNames,
     opcuaEndpointUri: opcuaEndpointUri,
     // If you want to provision a virtual device, set this flag to true.
     // NOTE: this flag is only for testing purpose.
-    provisionVirtualDevice: false,
+    provisionVirtualDevice: true,
     // If you want to see the behavior of embulk on greengrass, set this flag to true.
     provisionDummyDatabase: true,
   }
@@ -46,7 +48,7 @@ const deployStack = new GreengrassComponentDeployStack(
       account: process.env.CDK_DEFAULT_ACCOUNT,
       region: process.env.CDK_DEFAULT_REGION,
     },
-    thingName: thingName,
+    groupName: platformStack.thingGroupName,
     deploymentName: "Deployment for IndustrialDataPlatformGateway",
     opcConfig: {
       opcComponentName: platformStack.opcArchiver.componentName,

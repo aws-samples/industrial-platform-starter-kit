@@ -21,7 +21,7 @@ export interface Components {
 }
 
 export interface GreengrassComponentDeployProps {
-  thingName: string;
+  groupName: string;
   deploymentName?: string;
   components: Components[];
 }
@@ -36,10 +36,10 @@ export class GreengrassComponentDeploy extends Construct {
 
     const targetArn = `arn:aws:iot:${Stack.of(this).region}:${
       Stack.of(this).account
-    }:thing/${props.thingName}`;
+    }:thinggroup/${props.groupName}`;
     const deploymentName =
       props.deploymentName === undefined
-        ? `Deployment for ${props.thingName}`
+        ? `Deployment for ${props.groupName}`
         : props.deploymentName;
     const deployComponents: IComponentsType = {};
 

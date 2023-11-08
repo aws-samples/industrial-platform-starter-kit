@@ -9,6 +9,7 @@ import { GdkBucket } from "./constructs/gdk-publish/gdk-bucket";
 import * as path from "path";
 import { BlockPublicAccess } from "aws-cdk-lib/aws-s3";
 import * as python from "@aws-cdk/aws-lambda-python-alpha";
+import { aws_iot as iot } from "aws-cdk-lib";
 
 import {
   PythonGdkPublish,
@@ -28,7 +29,8 @@ import {
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 
 interface IndustrialDataPlatformStackProps extends cdk.StackProps {
-  thingName: string;
+  thingGroupName: string;
+  gatewayNames: string[];
   opcuaEndpointUri: string;
   provisionVirtualDevice?: boolean;
   provisionDummyDatabase?: boolean;
@@ -40,6 +42,7 @@ export class IndustrialDataPlatformStack extends cdk.Stack {
   public readonly rdbExporter: GdkPublish;
   public readonly storage: Storage;
   public readonly datacatalog: Datacatalog;
+  public readonly thingGroupName: string;
 
   constructor(
     scope: Construct,
@@ -91,42 +94,57 @@ export class IndustrialDataPlatformStack extends cdk.Stack {
 
       const bootstrap = new GreengrassBootstrap(this, "GreengrassBootstrap", {
         componentBuckets: [componentBucket],
-        thingName: props.thingName,
+        gatewayNames: props.gatewayNames,
       });
 
-      const sitewise = new SitewiseGateway(this, "SitewiseGateway", {
-        gatewayName: "sitewise-gateway",
-        coreDeviceThingName: bootstrap.thingName,
-        endpointUri: props.opcuaEndpointUri,
+      props.gatewayNames.forEach((gatewayName) => {
+        new SitewiseGateway(this, `SitewiseGateway-${gatewayName}`, {
+          gatewayName: gatewayName,
+          coreDeviceThingName: gatewayName,
+          endpointUri: props.opcuaEndpointUri,
+        });
       });
 
-      // Allow greengrass to send to IoT SiteWise
+      // Allow greengrass core device to send to IoT SiteWise
       bootstrap.addToTesRolePolicy(
         new PolicyStatement({
           actions: ["iotsitewise:BatchPutAssetPropertyValue"],
           resources: ["*"],
         })
       );
+      // Allow greengrass core device to send to buckets
       storage.opcRawBucket.grantWrite(bootstrap.tesRole);
       storage.fileRawBucket.grantWrite(bootstrap.tesRole);
       storage.rdbArchiveBucket.grantReadWrite(bootstrap.tesRole);
 
+      // Create IoT thing group
+      const thingGroup = new iot.CfnThingGroup(this, "ThingGroup", {
+        thingGroupName: props.thingGroupName,
+        thingGroupProperties: {
+          thingGroupDescription: "Industrial Data Platform Gateway Group",
+        },
+      });
+
       this.opcArchiver = opcArchiver;
       this.fileWatcher = fileWatcher;
       this.rdbExporter = rdbExporter;
+      this.thingGroupName = props.thingGroupName;
 
       // Provision virtual resources
       let network;
-      let virtualDevice;
+      let virtualDevices: VirtualDevice[] = [];
       if (props.provisionVirtualDevice || props.provisionDummyDatabase) {
         network = new Network(this, "Network", {});
       }
 
       if (props.provisionVirtualDevice) {
         // create virtual device
-        virtualDevice = new VirtualDevice(this, "VirtualDevice", {
-          installPolicy: bootstrap.installPolicy,
-          network: network!,
+        const virtualDevices = props.gatewayNames.map((gatewayName) => {
+          return new VirtualDevice(this, `VirtualDevice-${gatewayName}`, {
+            deviceName: gatewayName,
+            installPolicy: bootstrap.installPolicy,
+            network: network!,
+          });
         });
       }
 
@@ -156,11 +174,13 @@ export class IndustrialDataPlatformStack extends cdk.Stack {
         });
 
         if (props.provisionVirtualDevice) {
-          virtualDevice?.instance.connections!.securityGroups.forEach(
-            (securityGroup) => {
-              database.allowInboundAccess(securityGroup);
-            }
-          );
+          virtualDevices.forEach((virtualDevice) => {
+            virtualDevice?.instance.connections!.securityGroups.forEach(
+              (securityGroup) => {
+                database.allowInboundAccess(securityGroup);
+              }
+            );
+          });
         }
 
         ingestor.connections.securityGroups.forEach((securityGroup) => {
