@@ -65,6 +65,8 @@ Embulk プラグインの[PostgreSQL input plugin for Embulk](https://github.com
 ```json
 {
     ...略...,
+    // IoT Thing Group名
+    "thingGroupName": "IndustrialPlatformThingGroup",
     // ゲートウェイデバイスの名前
     "gatewayNames": ["factory1", "factory2"],
     // OPC-UAエンドポイントURI
@@ -86,7 +88,7 @@ Embulk プラグインの[PostgreSQL input plugin for Embulk](https://github.com
 }
 ```
 
-なお`gatewayNames`は複数のエッジゲートウェイデバイスから同じ S3 のバケットへ転送することを想定し、複数指定できるようにしています。
+なお`gatewayNames`は複数のエッジゲートウェイデバイスから同じ S3 のバケットへ転送することを想定し、複数指定できるようにしています。工場名や設備名などわかりやすい名称をつけることを推奨します。なお`thingGroupName`はこの複数のデバイスをまとめた概念の名前です。
 
 `cdk/bin/industrial-data-platform.ts`を開き、`provisionVirtualDevice`および`provisionDummyDatabase`を`false`に変更します。
 

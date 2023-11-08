@@ -2,9 +2,9 @@
 
 ## Greengrass のインストール
 
-ゲートウェイデバイス（以降、デバイスと呼称）へ Greengrass をインストールします。
+ゲートウェイデバイス（以降、デバイスと呼称）へ Greengrass をインストールします。`cdk.json`に特に変更を加えていない場合、`factory1`および`factory2`の 2 つの仮想デバイスが作成されます。ここでは`factory1`のみに絞って動作確認を行います。
 
-まずは CloudFormation のページに AWS マネージメントコンソールからアクセスし、`IndustrialDataPlatformStack`をクリックしてください。その後`出力`タブをクリックし、インストールコマンドを控えます。デバイスの OS が Linux の場合は`GreengrassBootstrapGreengrassInstallCommandForLinux`、Windows の場合は`GreengrassBootstrapGreengrassInstallCommandForWindows`をそれぞれ参照してください。
+まず CloudFormation のページに AWS マネージメントコンソールからアクセスし、`IndustrialDataPlatformStack`をクリックしてください。その後`出力`タブをクリックし、インストールコマンドを控えます。ここでは`GreengrassBootstrapfactory1GreengrassInstallCommandForLinux`を控えます。
 
 コマンド例 (Linux):
 
@@ -12,7 +12,18 @@
 sudo -E java "-Droot=/greengrass/v2" "-Dlog.store=FILE" -jar /GreengrassInstaller/lib/Greengrass.jar --aws-region ap-northeast-1 --thing-name IndustrialDataPlatformGateway --thing-policy-name IndustrialDataPlatformGatewayThingPolicy --tes-role-name IndustrialDataPlatformStac-GreengrassBootstrapGreen-XXXXX --tes-role-alias-name IndustrialDataPlatformStac-GreengrassBootstrapGreen-XXXXXAlias --component-default-user ggc_user:ggc_group --provision true --setup-system-service true --deploy-dev-tools false
 ```
 
-控えたコマンドを仮想デバイス上のターミナルで実行します。マネージメントコンソールの EC2 インスタンス > IndustrialDataPlatformStack/VirtualDevice/Instance > 接続 > セッションマネージャーをご利用いただくことでターミナルへアクセスできます。下記のような出力が得られれば成功です。
+控えたコマンドを仮想デバイス上のターミナルで実行します。マネージメントコンソールの EC2 インスタンス > IndustrialDataPlatformStack/VirtualDevice-factory1/Instance > 接続 > セッションマネージャーをご利用いただくことでターミナルへアクセスできます。
+
+まず Greengrass 本体をダウンロードし展開します。[参考](https://docs.aws.amazon.com/greengrass/v2/developerguide/manual-installation.html#download-greengrass-core-v2)
+
+```sh
+cd /home/ssm-user
+curl -s https://d2s8p88vqu9w66.cloudfront.net/releases/greengrass-nucleus-latest.zip > greengrass-nucleus-latest.zip
+unzip greengrass-nucleus-latest.zip -d GreengrassInstaller && rm greengrass-nucleus-latest.zip
+java -jar ./GreengrassInstaller/lib/Greengrass.jar --version
+```
+
+続いて、先ほど控えたコマンドを実行します。下記のような出力が得られれば成功です。
 
 ```
 C:\Users\Administrator>java "-Droot=C:\greengrass\v2" "-Dlog.store=FILE" -jar .\GreengrassInstaller/lib/Greengrass.jar --aws-region ap-northeast-1 --thing-name Prototype-OPC-Gateway --thing-policy-name OPC-GatewayThingPolicy --tes-role-name OPC-GatewayTokenExchangeRole --tes-role-alias-name OPC-GatewayTokenExchangeRoleAlias --component-default-user ggc_user --provision true --setup-system-service true --deploy-dev-tools true
@@ -38,21 +49,25 @@ Successfully set up Nucleus as a system service
 デバイスが AWS へ登録されていることの確認のため、下記のコマンドを実行します。**このコマンドは Greengrass をインストールしたデバイスではなく、CDK をデプロイした端末のターミナルで実行してください。**
 
 ```sh
-aws iot describe-thing --thing-name IndustrialDataPlatformGateway
+aws iot describe-thing --thing-name factory1
 ```
 
 下記のような出力が得られれば成功です。
 
 ```json
 {
-  "defaultClientId": "IndustrialDataPlatformGateway",
-  "thingName": "IndustrialDataPlatformGateway",
+  "defaultClientId": "factory1",
+  "thingName": "factory1",
   "thingId": "xxxxxxx",
-  "thingArn": "arn:aws:iot:ap-northeast-1:xxxxxx:thing/IndustrialDataPlatformGateway",
+  "thingArn": "arn:aws:iot:ap-northeast-1:xxxxxx:thing/factory1",
   "attributes": {},
   "version": 1
 }
 ```
+
+## Thing グループへの追加
+
+セットアップしたデバイスを、IoT Thing グループへ追加します。マネコンで[モノのグループ](https://console.aws.amazon.com/iot/home?region=ap-northeast-1#/thingGroupHub)へアクセスし、`IndustrialDataPlatformGatewayGroup` > `モノ`タブ > `モノを追加`をクリックします。前節までのセットアップが完了していれば`factory1`が選択肢に現れるはずですので、`factory1`をグループに追加します。現れない場合は Greengrass が正しくセットアップされていないので、前節をもう一度見直してみてください。
 
 ## (Optional) OPC-UA サーバの動作確認
 
@@ -74,15 +89,15 @@ opcua-commander -e opc.tcp://X.X.X.X:YYYY
 opcua-commander -e opc.tcp://127.0.0.1:52250
 ```
 
-ツールの操作方法は、 カーソルキーでツリーを展開していきます。今回対象とする値は、RootFolder > Objects > root 以下に展開できます。この値をモニタしていくためには、モニタしたい値を選択し、 m キーを押します。値の詳細を確認するには、 l キーを押し Attribute List をカーソルで動かして確認します。プログラムを終了するには q キーを押します。ダミーの OPC-UA サーバでは下記のタグが確認できます。
+ツールの操作方法は、 カーソルキーでツリーを展開していきます。今回対象とする値は、RootFolder > Objects > factory1 以下に展開できます。この値をモニタしていくためには、モニタしたい値を選択し、 m キーを押します。値の詳細を確認するには、 l キーを押し Attribute List をカーソルで動かして確認します。プログラムを終了するには q キーを押します。ダミーの OPC-UA サーバでは下記のタグが確認できます。
 
-- root/tag1: Int (整数)
+- factory1/tag1: Int (整数)
   - 制御指示値、カウント数などのタグを想定
-- root/tag2: Double (浮動小数点)
+- factory1/tag2: Double (浮動小数点)
   - 温度や湿度、圧力などのタグを想定
-- root/tag3: String (文字列)
+- factory1/tag3: String (文字列)
   - good / bad などステータス用のタグを想定
-- root/tag4: Boolean (ブール値)
+- factory1/tag4: Boolean (ブール値)
   - ON / OFF を表すタグを想定
 
 ![](../imgs/opcua_commander.png)
