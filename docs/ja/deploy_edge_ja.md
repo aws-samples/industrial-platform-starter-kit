@@ -14,7 +14,7 @@ sudo -E java "-Droot=/greengrass/v2" "-Dlog.store=FILE" -jar /GreengrassInstalle
 
 控えたコマンドを仮想デバイス上のターミナルで実行します。マネージメントコンソールの EC2 インスタンス > IndustrialDataPlatformStack/VirtualDevice-factory1/Instance > 接続 > セッションマネージャーをご利用いただくことでターミナルへアクセスできます。
 
-まず Greengrass 本体をダウンロードし展開します。[参考](https://docs.aws.amazon.com/greengrass/v2/developerguide/manual-installation.html#download-greengrass-core-v2)
+ターミナルアクセス後、控えたコマンドを実行する前に Greengrass 本体をダウンロードし展開します。[参考](https://docs.aws.amazon.com/greengrass/v2/developerguide/manual-installation.html#download-greengrass-core-v2)
 
 ```sh
 cd /home/ssm-user
@@ -74,7 +74,7 @@ aws iot describe-thing --thing-name factory1
 この手順はオプショナルです。デバイスが OPC-UA サーバと通信が可能かどうかを確認します (要 Node.js 環境)。まずは[opcua-commander](https://github.com/node-opcua/opcua-commander)をインストールします。
 
 ```
-npm i -g opcua-commander
+sudo npm i -g opcua-commander
 ```
 
 続いて下記のコマンドを実行します。なおアドレス (X.X.X.X)・ポート (YYYY) はお使いの OPC-UA サーバ設定に合わせてください。**以降の手順は Greengrass をインストールしたデバイス上で実行してください。**
