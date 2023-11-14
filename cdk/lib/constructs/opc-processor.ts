@@ -9,6 +9,8 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as events from "aws-cdk-lib/aws-events";
 import * as targets from "aws-cdk-lib/aws-events-targets";
 import { AthenaWorkgroup } from "./athena-workgroup";
+import * as sfn from "aws-cdk-lib/aws-stepfunctions";
+import * as tasks from "aws-cdk-lib/aws-stepfunctions-tasks";
 
 export interface OpcProcessorProps {
   database: glue.IDatabase;
@@ -26,6 +28,13 @@ export interface OpcProcessorProps {
    * @default - rate(1 hour)
    */
   schedule?: events.Schedule;
+  /**
+   * Maximum number of concurrent executions for `INSERT INTO` operation.
+   * Please also refer Athena quota.
+   * Ref: https://docs.aws.amazon.com/general/latest/gr/athena.html#amazon-athena-limits
+   * @default - 5
+   */
+  maxConcurrency?: number;
 }
 
 export class OpcProcessor extends Construct {
@@ -43,9 +52,33 @@ export class OpcProcessor extends Construct {
       });
     const schedule =
       props.schedule ?? events.Schedule.expression("rate(1 hour)");
+    const maxConcurrency = props.maxConcurrency ?? 5;
 
-    const handler = new lambda.PythonFunction(this, "Handler", {
-      entry: path.join(__dirname, "../../lambda/opc_processor/"),
+    // Fetch tags inside current partition
+    const tagFetcher = new lambda.PythonFunction(this, "TagFetcher", {
+      entry: path.join(__dirname, "../../lambda/opc_processor/tag_fetcher/"),
+      runtime: Runtime.PYTHON_3_9,
+      environment: {
+        DATABASE: props.database.databaseName,
+        SOURCE_TABLE: props.sourceTable.tableName,
+        WORKGROUP_NAME: workGroup.workgroupName,
+      },
+      timeout: Duration.minutes(5),
+    });
+    this.addAthenaPolicyToHandler({
+      handler: tagFetcher,
+      workGroup: workGroup,
+      catalogArn: props.database.catalogArn,
+      databaseArn: props.database.databaseArn,
+      sourceTableArn: props.sourceTable.tableArn,
+      targetTableArn: props.targetTable.tableArn,
+    });
+    workGroup.outputBucket.grantReadWrite(tagFetcher);
+    props.sourceBucket.grantRead(tagFetcher);
+
+    // Processor to run `INSERT INTO` to target table.
+    const processor = new lambda.PythonFunction(this, "Processor", {
+      entry: path.join(__dirname, "../../lambda/opc_processor/processor/"),
       runtime: Runtime.PYTHON_3_9,
       environment: {
         DATABASE: props.database.databaseName,
@@ -55,10 +88,68 @@ export class OpcProcessor extends Construct {
       },
       timeout: Duration.minutes(15),
     });
-    workGroup.outputBucket.grantReadWrite(handler);
-    props.sourceBucket.grantRead(handler);
-    props.targetBucket.grantWrite(handler);
+    this.addAthenaPolicyToHandler({
+      handler: processor,
+      workGroup: workGroup,
+      catalogArn: props.database.catalogArn,
+      databaseArn: props.database.databaseArn,
+      sourceTableArn: props.sourceTable.tableArn,
+      targetTableArn: props.targetTable.tableArn,
+    });
+    workGroup.outputBucket.grantReadWrite(processor);
+    props.sourceBucket.grantRead(processor);
+    props.targetBucket.grantWrite(processor);
 
+    const tagFetcherTask = new tasks.LambdaInvoke(this, "TagFetcherTask", {
+      lambdaFunction: tagFetcher,
+      outputPath: "$.Payload",
+    });
+
+    // NOTE: Athena insert query is limited to 100 partitions.
+    // To avoid this issue, split tag list to chunks and then pass to map state of state machine.
+    const mapState = new sfn.Map(this, "MapState", {
+      itemsPath: "$.tagChunks",
+      parameters: {
+        "tags.$": "$$.Map.Item.Value",
+        "datehour.$": "$.datehour",
+      },
+      resultPath: "$.Result",
+      maxConcurrency: maxConcurrency,
+    });
+
+    const processorTask = new tasks.LambdaInvoke(this, "ProcessorTask", {
+      lambdaFunction: processor,
+    });
+    mapState.iterator(processorTask);
+
+    const definition = tagFetcherTask.next(mapState);
+    const stateMachine = new sfn.StateMachine(this, "StateMachine", {
+      definition,
+    });
+
+    // Run the lambda handler periodically
+    new events.Rule(this, "ScheduleRule", {
+      schedule: schedule,
+      targets: [new targets.SfnStateMachine(stateMachine)],
+    });
+  }
+
+  private addAthenaPolicyToHandler(props: {
+    handler: IFunction;
+    workGroup: AthenaWorkgroup;
+    catalogArn: string;
+    databaseArn: string;
+    sourceTableArn: string;
+    targetTableArn: string;
+  }) {
+    const {
+      handler,
+      workGroup,
+      catalogArn,
+      databaseArn,
+      sourceTableArn,
+      targetTableArn,
+    } = props;
     handler.role?.addToPrincipalPolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
@@ -77,7 +168,7 @@ export class OpcProcessor extends Construct {
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["glue:GetDatabase", "glue:GetDatabases"],
-        resources: [props.database.catalogArn, props.database.databaseArn],
+        resources: [catalogArn, databaseArn],
       })
     );
     handler.role?.addToPrincipalPolicy(
@@ -90,21 +181,8 @@ export class OpcProcessor extends Construct {
           "glue:GetPartition",
           "glue:GetPartitions",
         ],
-        resources: [
-          props.database.catalogArn,
-          props.database.databaseArn,
-          props.sourceTable.tableArn,
-          props.targetTable.tableArn,
-        ],
+        resources: [catalogArn, databaseArn, sourceTableArn, targetTableArn],
       })
     );
-
-    // Run the lambda handler periodically
-    new events.Rule(this, "ScheduleRule", {
-      schedule: schedule,
-      targets: [new targets.LambdaFunction(handler)],
-    });
-
-    this.handler = handler;
   }
 }
