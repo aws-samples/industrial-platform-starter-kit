@@ -33,13 +33,20 @@ English doc coming soon.
 
 ## アーキテクチャ
 
+### 概要
+
+![](./docs/imgs/multi_gateway.png)
+複数の工場や設備から一つのデータ基盤 (S3) へ収集可能です。エッジサーバの台数構成は工場側の生産ラインの都合に合わせ柔軟に変更が可能です。Athena や Quicksight を通じ複数部門がデータをすぐに参照できる状態になります。
+
+### 詳細
+
 ![](./docs/imgs/arch.png)
 
 エッジのゲートウェイデバイスにインストールされた Greengrass により、OPC-UA データおよびファイルを収集し S3 へアップロードします。収集されたデータは[AWS Lambda](https://aws.amazon.com/lambda/)により加工された後、[Amazon QuickSight](https://aws.amazon.com/quicksight/)で可視化・分析することができます。
 
 なお本プロジェクトでは IoT SiteWise のデータ保存や可視化機能は利用していませんが、OPC データの収集にのみ IoT SiteWise の機能を利用しています。具体的には[IoT SiteWise OPC-UA コレクター](https://docs.aws.amazon.com/greengrass/v2/developerguide/iotsitewise-opcua-collector-component.html)コンポーネントを利用し、opcua-archiver 経由でデータを S3 へ転送しています。opcua-archiver および file-watcher はそれぞれ本プロジェクトに含まれる独自の Greengrass コンポーネントです。
 
-OPC データ収集直後の S3 バケット (OPC (Raw) バケット) では OPC タグによるパーティショニングがされていない状態のため、タグを指定しクエリする場合にスキャン量が増えてしまうため非効率的です。後続の Lambda は 1 時間に 1 度、OPC タグによるパーティショニングを実行し、OPC (Processed) バケットに保存します。これによりタグ指定によるクエリが可能となり、クエリの料金節約やレスポンスの高速化が可能になります。収集後 1 時間未満の鮮度が必要な場合は Raw バケットを参照ください。
+OPC データ収集直後の S3 バケット (OPC (Raw) バケット) では OPC タグによるパーティショニングがされていない状態のため、タグを指定しクエリする場合にスキャン量が増えてしまうため非効率的です。後続の Lambda は 1 時間に 1 度、OPC タグによるパーティショニングを実行し、OPC (Processed) バケットに保存します。これによりタグ指定によるクエリが可能となり、クエリの料金節約やレスポンスの高速化が可能になります。StepFunctions はパーティショニングを実行するための Athena クエリを並列実行するために利用します。収集後 1 時間未満の鮮度が必要な場合は Raw バケットを参照ください。
 
 ファイルデータの加工処理はフォーマットの整形などの用途を想定しており、任意の実装が可能です。なおファイル加工用の Lambda は Raw バケットにデータが到着後、即座に実行されます。
 
