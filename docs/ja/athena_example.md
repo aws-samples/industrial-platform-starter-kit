@@ -22,7 +22,7 @@ WHERE datehour BETWEEN
 date_format(at_timezone(timestamp '2023-08-17 00:00:00', INTERVAL '-9' HOUR), '%Y/%m/%d/%H')
     AND date_format(at_timezone(timestamp '2023-08-18 00:00:00', INTERVAL '-9' HOUR), '%Y/%m/%d/%H')
 -- URLエンコードして指定する
-  AND url_encoded_tag IN (REPLACE(URL_ENCODE(REPLACE('/root/tag2', '/', '_')), '_', '/'))
+  AND url_encoded_tag IN (REPLACE(URL_ENCODE(REPLACE('/factory1/tag2', '/', '_')), '_', '/'))
 -- 必要であればさらにタイムスタンプを絞り込む
 -- NOTE: パーティション (datehour) のみの指定の場合、１時間分のデータ全てが取得されます
   AND timestamp BETWEEN

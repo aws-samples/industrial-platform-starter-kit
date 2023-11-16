@@ -7,6 +7,7 @@ import time
 from opcua import Server, ua
 
 ROOT_NODE = os.environ.get("ROOT_NODE", "root")
+NUMBER_OF_TAGS = 5000
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -18,14 +19,21 @@ logger.addHandler(handler)
 
 
 # Valid types: int, float, string, bool
-nodes = {
-    ROOT_NODE: {
-        "tag1": [int, 0, 1, 100],
-        "tag2": [float, 10.0, -2, 2],
-        "tag3": [str, ["good", "bad", "nice"]],
-        "tag4": [bool],
-    }
-}
+nodes = {"ROOT_NODE": {}}
+
+for i in range(0, NUMBER_OF_TAGS):
+    if i % 4 == 1:
+        # Integer type
+        nodes["ROOT_NODE"][f"tag{i}"] = [int, 0, 1, 100]
+    elif i % 4 == 2:
+        # Float type
+        nodes["ROOT_NODE"][f"tag{i}"] = [float, 10.0, -2, 2]
+    elif i % 4 == 3:
+        # String type
+        nodes["ROOT_NODE"][f"tag{i}"] = [str, ["good", "bad", "nice"]]
+    else:
+        # Boolean type
+        nodes["ROOT_NODE"][f"tag{i}"] = [bool]
 
 DEFAULT_INTERVAL = 1
 DEFAULT_OPC_ENDPOINT = "opc.tcp://0.0.0.0:52250"

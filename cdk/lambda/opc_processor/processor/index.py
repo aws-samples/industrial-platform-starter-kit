@@ -1,7 +1,7 @@
+import json
 import os
 import time
 import typing
-import urllib.parse
 from datetime import datetime, timedelta
 
 import boto3
@@ -10,9 +10,23 @@ DATABASE = os.environ.get("DATABASE")
 SOURCE_TABLE = os.environ.get("SOURCE_TABLE")
 TARGET_TABLE = os.environ.get("TARGET_TABLE")
 WORKGROUP_NAME = os.environ.get("WORKGROUP_NAME")
+TEMP_BUCKET = os.environ.get("TEMP_BUCKET")
 LIMIT_WRITE_PARTITIONS = 100
 
 athena = boto3.client("athena")
+s3 = boto3.client("s3")
+
+
+def read_from_s3(bucket, key):
+    s3 = boto3.client("s3")
+    response = s3.get_object(Bucket=bucket, Key=key)
+    data = response["Body"].read()
+    return json.loads(data.decode("utf-8"))
+
+
+def delete_from_s3(bucket, key):
+    s3 = boto3.client("s3")
+    s3.delete_object(Bucket=bucket, Key=key)
 
 
 def run_athena_query(query: str, database: str, workgroup: str):
@@ -66,41 +80,16 @@ def build_insert_query(datehour: str, tags: typing.List):
 
 
 def handler(event, context):
-    if event.get("datehour"):
-        # For debugging
-        datehour = event["datehour"]
-    else:
-        # NOTE: Handle 1 hour before data
-        now = datetime.now() - timedelta(hours=1)
-        year = str(now.year)
-        month = str(now.month).zfill(2)
-        day = str(now.day).zfill(2)
-        hour = str(now.hour).zfill(2)
-        datehour = f"{year}/{month}/{day}/{hour}"
-    print(f"[DEBUG] datehour: {datehour}")
+    print(event)
+    s3Key = event["s3Key"]
+    datehour = event["datehour"]
 
-    # NOTE: Adding partitions is limited to 100 partitions at a time, so get all tags first and insert them in 100 tag increments
-    # See: https://docs.aws.amazon.com/ja_jp/athena/latest/ug/ctas-insert-into.html
-    tag_query = f"""
-    SELECT DISTINCT(propertyalias)
-    FROM "{SOURCE_TABLE}"
-    WHERE datehour='{datehour}'
-    """
-    print(f"[DEBUG] query string: {tag_query}")
-    result = run_athena_query(tag_query, DATABASE, WORKGROUP_NAME)
-
-    # The first element is column name so skip it
-    rows = result["ResultSet"]["Rows"][1:]
-    data = [r["Data"] for r in rows]
-    tags = [d[0]["VarCharValue"] for d in data]
+    tags = read_from_s3(TEMP_BUCKET, s3Key)
     print(f"[DEBUG] tags: {tags}")
 
-    # Split tags into 100 tags per query
-    split_tags = [
-        tags[i : i + LIMIT_WRITE_PARTITIONS]
-        for i in range(0, len(tags), LIMIT_WRITE_PARTITIONS)
-    ]
-    for st in split_tags:
-        q = build_insert_query(datehour, st)
-        print(f"[DEBUG] query string: {q}")
-        result = run_athena_query(q, DATABASE, WORKGROUP_NAME)
+    q = build_insert_query(datehour, tags)
+    print(f"[DEBUG] query string: {q}")
+    run_athena_query(q, DATABASE, WORKGROUP_NAME)
+
+    delete_from_s3(TEMP_BUCKET, s3Key)
+    print(f"[INFO] Deleted {s3Key} from {TEMP_BUCKET}")

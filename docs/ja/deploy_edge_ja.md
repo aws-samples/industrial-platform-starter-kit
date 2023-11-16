@@ -4,7 +4,7 @@
 
 ゲートウェイデバイス（以降、デバイスと呼称）へ Greengrass をインストールします。`cdk.json`に特に変更を加えていない場合、`factory1`および`factory2`の 2 つの仮想デバイスが作成されます。ここでは`factory1`のみに絞って動作確認を行います。
 
-まず CloudFormation のページに AWS マネージメントコンソールからアクセスし、`IndustrialDataPlatformStack`をクリックしてください。その後`出力`タブをクリックし、インストールコマンドを控えます。ここでは`GreengrassBootstrapfactory1GreengrassInstallCommandForLinux`を控えます。
+まず CloudFormation のページに AWS マネージメントコンソールからアクセスし、`IndustrialDataPlatformStack`をクリックしてください。その後`出力`タブをクリックし、インストールコマンドを控えます。ここでは`GreengrassBootstrapfactory1GreengrassInstallCommandForLinuxXXXX`を控えます。
 
 コマンド例 (Linux):
 

@@ -2,6 +2,30 @@
 
 ここでは実際のデータソースへ接続し S3 へデータを吸い上げる手順について解説します。本サンプルの基本的な動作確認については既に終えていることを前提としているため、まだの場合は[こちら](./getting_started_ja.md)をお読みいただくことをおすすめします。
 
+## S3 ストレージクラス・ライフサイクルの設定
+
+`cdk/lib/constructs/storage.ts`に OPC データの[ストレージクラス](https://aws.amazon.com/s3/storage-classes/)およびライフサイクルを設定しています。要件に応じて編集してください。
+
+```ts
+const opcLifecycleRule: s3.LifecycleRule = {
+  enabled: true,
+  transitions: [
+    {
+      storageClass: s3.StorageClass.INFREQUENT_ACCESS,
+      transitionAfter: Duration.days(30 * 3),
+    },
+    {
+      storageClass: s3.StorageClass.GLACIER_INSTANT_RETRIEVAL,
+      transitionAfter: Duration.days(365),
+    },
+    {
+      storageClass: s3.StorageClass.DEEP_ARCHIVE,
+      transitionAfter: Duration.days(365 * 20),
+    },
+  ],
+};
+```
+
 ## (Optional) RDB テーブルの設定
 
 RDB のデータを吸い上げる場合はいくつかの事前設定が必要です。
