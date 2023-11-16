@@ -97,11 +97,3 @@ def handler(event, context):
 
     return {"s3Keys": s3_keys, "datehour": datehour}
 
-    # # NOTE: Athena insert query is limited to 100 partitions.
-    # # To avoid this issue, split tag list to chunks and then pass to map state of state machine.
-    # tag_chunks = [
-    #     result[i : i + LIMIT_WRITE_PARTITIONS]
-    #     for i in range(0, len(result), LIMIT_WRITE_PARTITIONS)
-    # ]
-
-    # return {"tagChunks": tag_chunks, "datehour": datehour}

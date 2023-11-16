@@ -93,3 +93,4 @@ def handler(event, context):
 
     delete_from_s3(TEMP_BUCKET, s3Key)
     print(f"[INFO] Deleted {s3Key} from {TEMP_BUCKET}")
+
