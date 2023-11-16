@@ -1,7 +1,9 @@
+import json
 import os
 import time
 import typing
 import urllib.parse
+import uuid
 from datetime import datetime, timedelta
 
 import boto3
@@ -9,9 +11,15 @@ import boto3
 DATABASE = os.environ.get("DATABASE")
 SOURCE_TABLE = os.environ.get("SOURCE_TABLE")
 WORKGROUP_NAME = os.environ.get("WORKGROUP_NAME")
+TEMP_BUCKET = os.environ.get("TEMP_BUCKET")
 LIMIT_WRITE_PARTITIONS = 100
 
 athena = boto3.client("athena")
+s3 = boto3.client("s3")
+
+
+def upload_to_s3(data, bucket, key):
+    s3.put_object(Bucket=bucket, Key=key, Body=json.dumps(data))
 
 
 def run_athena_query(query: str, database: str, workgroup: str):
@@ -75,11 +83,17 @@ def handler(event, context):
     """
     result = run_athena_query(tag_query, DATABASE, WORKGROUP_NAME)
 
-    # NOTE: Athena insert query is limited to 100 partitions.
-    # To avoid this issue, split tag list to chunks and then pass to map state of state machine.
     tag_chunks = [
         result[i : i + LIMIT_WRITE_PARTITIONS]
         for i in range(0, len(result), LIMIT_WRITE_PARTITIONS)
     ]
 
-    return {"tagChunks": tag_chunks, "datehour": datehour}
+    s3_keys = []
+    for chunk in tag_chunks:
+        unique_id = uuid.uuid4()
+        s3_key = f"{datehour}/{unique_id}.json"
+        upload_to_s3(chunk, TEMP_BUCKET, s3_key)
+        s3_keys.append(s3_key)
+
+    return {"s3Keys": s3_keys, "datehour": datehour}
+
