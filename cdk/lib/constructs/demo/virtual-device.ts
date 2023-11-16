@@ -96,7 +96,7 @@ export class VirtualDevice extends Construct {
       // Setup environment variables
       "sudo mkdir -p /etc/systemd/system/opcua.service.d",
       `echo "[Service]" | sudo tee /etc/systemd/system/opcua.service.d/env.conf`,
-      `echo "Environment='ROOT_NODE=${props.deviceName}'" | sudo tee -a /etc/systemd/system/opcua.service.d/env.conf`,
+      `echo 'Environment=ROOT_NODE=${props.deviceName}' | sudo tee -a /etc/systemd/system/opcua.service.d/env.conf`,
 
       // Run opcua dummy server
       "sudo systemctl daemon-reload",

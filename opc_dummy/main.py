@@ -19,21 +19,21 @@ logger.addHandler(handler)
 
 
 # Valid types: int, float, string, bool
-nodes = {"ROOT_NODE": {}}
+nodes = {ROOT_NODE: {}}
 
 for i in range(0, NUMBER_OF_TAGS):
     if i % 4 == 1:
         # Integer type
-        nodes["ROOT_NODE"][f"tag{i}"] = [int, 0, 1, 100]
+        nodes[ROOT_NODE][f"tag{i}"] = [int, 0, 1, 100]
     elif i % 4 == 2:
         # Float type
-        nodes["ROOT_NODE"][f"tag{i}"] = [float, 10.0, -2, 2]
+        nodes[ROOT_NODE][f"tag{i}"] = [float, 10.0, -2, 2]
     elif i % 4 == 3:
         # String type
-        nodes["ROOT_NODE"][f"tag{i}"] = [str, ["good", "bad", "nice"]]
+        nodes[ROOT_NODE][f"tag{i}"] = [str, ["good", "bad", "nice"]]
     else:
         # Boolean type
-        nodes["ROOT_NODE"][f"tag{i}"] = [bool]
+        nodes[ROOT_NODE][f"tag{i}"] = [bool]
 
 DEFAULT_INTERVAL = 1
 DEFAULT_OPC_ENDPOINT = "opc.tcp://0.0.0.0:52250"
