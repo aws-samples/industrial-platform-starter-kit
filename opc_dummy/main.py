@@ -7,7 +7,7 @@ import time
 from opcua import Server, ua
 
 ROOT_NODE = os.environ.get("ROOT_NODE", "root")
-NUMBER_OF_TAGS = 5000
+NUMBER_OF_TAGS = 500
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
